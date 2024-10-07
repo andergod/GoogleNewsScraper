@@ -79,7 +79,7 @@ def analyze_sentiment(text)->str:
     
 def get_main_currency(text, stock_dict)->str:
     nlk=load_nltk_information()
-    doc = nlp(text)
+    doc = nlk(text)
     # Extract entities recognized as cryptocurrencies
     recognized_currencies = [ent.text.lower() for ent in doc.ents if ent.text.lower() in stock_dict]
     # If there are recognized cryptocurrencies, return the first one, otherwise return None

@@ -31,7 +31,7 @@ def test_using_googlenews():
     # Async test
     async_start = time.time()
     print(googlenews.APIKEY)
-    async_responses = asyncio.run(get_response(WEBPAGE_URL, WEBPAGE_KEYB, googlenews))
+    async_responses = asyncio.run(get_response(WEBPAGE_URL, WEBPAGE_KEY, googlenews))
     print(f'average execution time async {1/((time.time()-async_start)/nums):0.2f} ' \
           f'resp/sec\nsolution: {async_responses[0]}')
 
