@@ -1,0 +1,13 @@
+# Python-specific
+*.py[cod]
+
+# Docker-specific
+*.log
+.env
+*.db
+
+# Ignore virtual environments
+venv/
+
+#Ignore API KEys
+/app/cred.py
