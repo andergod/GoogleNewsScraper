@@ -1,0 +1,32 @@
+# For parsing HTML
+beautifulsoup4==4.13.0b2
+
+# For working with dates and times
+dateparser==1.1.7
+python-dateutil==2.8.2
+
+# For web scraping and HTTP requests
+urllib3==1.26.15
+requests==2.31.0
+fake-useragent==1.2.0
+selenium==4.10.0
+selenium-stealth==1.0.6
+webdriver-manager==3.8.6
+capmonstercloudclient==1.5.0
+
+# For logging and debugging
+logging==0.5.1.2
+
+# For pandas (data manipulation)
+pandas==2.1.1
+numpy==1.25.0
+
+# For NLP (Natural Language Processing)
+nltk==3.8.1
+spacy==3.6.0
+
+# For asyncio (asynchronous tasks)
+asyncio==3.4.3
+
+# For JSON manipulation
+json==2.0.9
