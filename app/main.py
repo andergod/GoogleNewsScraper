@@ -29,6 +29,7 @@ from fake_useragent import UserAgent
 from selenium_stealth import stealth
 import json
 import importlib
+import cred
 
 #Load nltk model and download the necessary information
 def load_nltk_information():
@@ -318,18 +319,9 @@ def read_and_parse_proxies(file_path):
     return protocol, address
 
 if __name__ == '__main__':
-    with open('APIKEY.txt', 'r') as file:
-        APIKEY = file.read().strip()
+    print(cred.APIKEY)
         
-    #proxies = test_proxies('http_proxies.txt')  #you can run this one only once and see the good proxies
-    with open('good_proxies.txt', 'r') as file:
-        proxies = [line.strip() for line in file if line.strip()]
-    
-    #Trying the function
-    cookie = None
-    total_text=getNews('merck', '02/01/2020', '02/28/2020', proxies, cookie)
-    
-    print('Total text:', total_text)
+
     
 
     

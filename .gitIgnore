@@ -11,3 +11,6 @@ venv/
 
 #Ignore API KEys
 /app/cred.py
+
+#Ignore _PYCACHE_
+__pycache__/

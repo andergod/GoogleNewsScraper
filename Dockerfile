@@ -1,5 +1,5 @@
 # Use the official Python base image
-FROM python:3.12-slim
+FROM python:3.11.10-slim
 
 # Install curl and other dependencies for Poetry and building the app
 RUN apt-get update && apt-get install -y curl build-essential
@@ -29,4 +29,5 @@ COPY . .
 EXPOSE 8000
 
 # Set the default command to run your application
-CMD ["python", "-m", "app"]
+CMD ["python", "/app/test.py"]
+
