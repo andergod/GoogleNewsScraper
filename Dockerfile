@@ -1,6 +1,20 @@
 # Use the official Python base image
 FROM python:3.11.10-slim
 
+# Install dependencies
+RUN apt-get update && apt-get install -y wget gnupg
+
+# Download and install the specific version of Google Chrome
+RUN wget https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_129.0.6668.100-1_amd64.deb && \
+    dpkg -i google-chrome-stable_129.0.6668.100-1_amd64.deb || apt-get install -fy
+
+# Install other necessary libraries for Chrome and Selenium
+RUN apt-get install -y libnss3 libx11-xcb1 libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libatk1.0-0 \
+                       libatk-bridge2.0-0 libcups2 libxrandr2 libasound2 libxshmfence1 libgbm1 libvulkan1 xdg-utils
+
+# Clean up the downloaded .deb file
+RUN rm google-chrome-stable_129.0.6668.100-1_amd64.deb
+
 # Install curl and other dependencies for Poetry and building the app
 RUN apt-get update && apt-get install -y curl build-essential
 

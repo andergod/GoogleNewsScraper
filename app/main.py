@@ -46,7 +46,7 @@ def getNews(stock, startdate, enddate,proxies, cookies)->str:
     googlenews = GoogleNews()
     googlenews = GoogleNews(lang='en', region='US')
     googlenews = GoogleNews(start=startdate,end=enddate)
-    googlenews.set_APIKEY(APIKEY)
+    googlenews.set_APIKEY(cred.APIKEY)
     googlenews.setproxy(proxies)
     #googlenews.set_cookie(cookies)
     #googlenews.get_news(stock)
@@ -268,10 +268,8 @@ def test_proxies_selenium(file_path, url='http://www.google.com'):
 
 def getting_cookies(file_path, url='http://www.google.com'):
     with open(file_path, 'r') as file:
-        proxies = [line.strip() for line in file if line.strip()]
-    
+        proxies = [line.strip() for line in file if line.strip()]    
     all_cookies = []
-    
     for proxy in proxies:
         print(f"Testing proxy: {proxy}")
         chrome_options = Options()
@@ -285,7 +283,7 @@ def getting_cookies(file_path, url='http://www.google.com'):
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@id="logo"]/img')))
-            print(f"Proxy {proxy} works!")             
+            print(f"Proxy {proxy} works!")
         except Exception as e:
             print(f"Proxy {proxy} failed with error: {e}")
             print("Please solve the CAPTCHA if needed. Waiting 30 seconds for manual CAPTCHA completion.")
@@ -303,8 +301,7 @@ def getting_cookies(file_path, url='http://www.google.com'):
                 json.dump(all_cookies, f)
             print(f"Proxy {proxy} failed with error: {e}")
         finally:
-            driver.close()
-    
+            driver.close()   
     return all_cookies
 
 def read_and_parse_proxies(file_path):
@@ -318,10 +315,17 @@ def read_and_parse_proxies(file_path):
                 address.append(address_val)
     return protocol, address
 
+# Function to test the test_proxies function inside the GoogleNews class
+def test_proxy_GoogleNews():
+    proxies=''
+    cookie=None
+    url='https://www.google.com/search?hl=en&gl=en&q=merck&lr=lang_en&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1en,cdr:1,cd_min:02/01/2020,cd_max:02/28/2020,sbd:1&tbm=nws&start=0'
+    GoogleNews1 = GoogleNews()
+    return GoogleNews1.try_proxies(proxies, url)
+    
+    
 if __name__ == '__main__':
-    print(cred.APIKEY)
-        
-
-    
-
-    
+    proxies=''
+    cookie=None
+    # total_text=getNews('merck', '02/01/2020', '02/28/2020', proxies, cookie)
+    print(test_proxy_GoogleNews())

@@ -209,6 +209,7 @@ class GoogleNews:
         chrome_options.add_argument('--ignore-ssl-errors')
         
         # Initialize the WebDriver with the specified options
+        #driver_service = Service('../chromedriver') 
         driver = webdriver.Chrome(options=chrome_options)
         
         # Set random or specific monitor sizes
@@ -240,7 +241,7 @@ class GoogleNews:
     
     def try_proxies(self, proxies, url, max_retries=10):
         for attempt in range(max_retries):
-            proxy=  random.choice(proxies)
+            proxy = "None"
             try:
                 self.driver = self.setup_chrome_proxy(self.chrome_options, proxy, self.cookies)
                 self.driver.get(url)
