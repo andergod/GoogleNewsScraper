@@ -329,3 +329,4 @@ if __name__ == '__main__':
     cookie=None
     # total_text=getNews('merck', '02/01/2020', '02/28/2020', proxies, cookie)
     print(test_proxy_GoogleNews())
+    
