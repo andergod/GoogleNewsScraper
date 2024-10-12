@@ -1,5 +1,4 @@
-#Import packages
-
+# Import packages
 import sys
 from MyGoogleNews3 import GoogleNews
 import pandas as pd
@@ -95,11 +94,9 @@ def get_week_pairs(start_year, end_year):
     # Adjust start date if January 1 is not a Monday
     start_date += datetime.timedelta(days=(7 - start_date.weekday()) % 7)
     # End date at the end of the end year
-    end_date = datetime.date(end_year, 12, 31)
-    
+    end_date = datetime.date(end_year, 12, 31)    
     # List for storing the week pairs
     week_pairs = []
-    
     # Current date initially set to the first Monday of the start year
     current_date = start_date
     while current_date <= end_date:

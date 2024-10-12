@@ -1,0 +1,1 @@
+export DISPLAY=$(ip route | grep default | awk '{print $3}'):0.0

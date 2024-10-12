@@ -20,17 +20,19 @@
 				"esbenp.prettier-vscode"
 			]
     	}
-  	}
+  	},
+	// "mounts": [
+	// "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+	// ],
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+	"forwardPorts": [6000],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cat /etc/os-release",
-
+	"postCreateCommand": "./set_display.sh"
 	// Configure tool-specific properties.
 	// "customizations": {},
 
