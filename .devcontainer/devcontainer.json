@@ -32,7 +32,7 @@
 	"forwardPorts": [6000],
 
 	// Uncomment the next line to run commands after the container is created.
-	"postCreateCommand": "./set_display.sh"
+	"postCreateCommand": "bash ./.devcontainer/set_display.sh"
 	// Configure tool-specific properties.
 	// "customizations": {},
 

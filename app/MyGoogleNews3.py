@@ -169,7 +169,7 @@ class GoogleNews:
         if self.__encode != "":
             self.__key = urllib.request.quote(self.__key.encode(self.__encode))
         self.get_page()
-        
+
     def setproxy(self, proxy):
         self.proxy = proxy
         
@@ -207,6 +207,8 @@ class GoogleNews:
         chrome_options.add_argument(f'user-agent={user_agent}')
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--ignore-ssl-errors')
+        chrome_options.add_argument("--no-sandbox")  # Add this line
+        chrome_options.add_argument("--disable-dev-shm-usage")  # Optionally, reduce memory usage
         
         # Initialize the WebDriver with the specified options
         #driver_service = Service('../chromedriver') 
