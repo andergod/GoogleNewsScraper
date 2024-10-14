@@ -1,3 +1,3 @@
-import cred
-print(2**2)
-print(cred.APIKEY)
+import black
+
+print(black.__version__)

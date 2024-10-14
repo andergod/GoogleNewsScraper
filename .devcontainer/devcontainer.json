@@ -8,7 +8,6 @@
 		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 		"dockerfile": "../Dockerfile"
 	}, 
-	
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -18,7 +17,20 @@
 				"ms-python.black-formatter",
 				"ms-python.flake8",
 				"esbenp.prettier-vscode"
-			]
+			],
+				
+			"settings": {
+				// For using black formatter on saving files
+				"[python]": {
+					"editor.defaultFormatter": "ms-python.black-formatter"
+				},
+				"editor.formatOnSave": true,
+				"python.formatting.provider": "black",
+				// For using pylint				
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.linting.lintOnSave": true		  
+			}
     	}
   	},
 	// "mounts": [
