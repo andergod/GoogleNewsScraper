@@ -26,7 +26,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-import random
 from time import sleep
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -38,7 +37,7 @@ import asyncio
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
 
-### METHODS
+# METHODS
 
 
 def lexical_date_parser(date_to_check):
@@ -53,7 +52,7 @@ def lexical_date_parser(date_to_check):
         date_tmp = None
         datetime_tmp = None
 
-    if datetime_tmp == None:
+    if datetime_tmp is None:
         date_tmp = date_to_check
     else:
         datetime_tmp = datetime_tmp.replace(tzinfo=None)
@@ -122,7 +121,7 @@ def define_date(date):
         return float("nan")
 
 
-### CLASSEs
+# CLASSES
 
 
 class GoogleNews:
@@ -200,7 +199,8 @@ class GoogleNews:
 
     def search(self, key):
         """
-        Searches for a term in google.com in the news section and retrieves the first page into __results.
+        Searches for a term in google.com in the news section and retrieves
+        the first page into __results.
         Parameters:
         key = the search term
         """
@@ -274,7 +274,8 @@ class GoogleNews:
         # Inject the cookie into the browser
         # Stop passing the cookie for now
         # if 'expiry' in cookie:
-        #     del cookie['expiry']  # Selenium might not accept expiry, depends on version
+        #     del cookie['expiry']  # Selenium might not accept expiry,
+        # depends on version
         # driver.add_cookie(cookie)
 
         # Refresh or navigate again to make cookie take effect
@@ -335,13 +336,14 @@ class GoogleNews:
             key = self.driver.find_element(
                 By.XPATH, '//*[@id="recaptcha"]'
             ).get_attribute("data-sitekey")
-            # recaptchaDataSValue=self.driver.find_element(By.XPATH, '//*[@id="recaptcha"]').get_attribute('data-s') if needed
+            # recaptchaDataSValue=self.driver.find_element(By.XPATH,
+            # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
             recaptcha_response = await self.solve_catpcha_google(
                 current_url, key
             )  # his is the error
-            print("recatcha respone: {lol}".format(recaptcha_response))
-            print("data-sitekey: {lol}".format(key))
-            print("url: {lol}".format(current_url))
+            print(f"recatcha respone: {recaptcha_response}")
+            print(f"data-sitekey: {key}")
+            print(f"url: {current_url}")
             self.driver.execute_script(
                 f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
             )
@@ -384,20 +386,25 @@ class GoogleNews:
 
     def page_at(self, page=1):
         """
-        Retrieves a specific page from google.com in the news sections into __results.
+        Retrieves a specific page from google.com in the news
+        sections into results.
         Parameter:
         page = number of the page to be retrieved
         """
         results = []
         try:
             if self.__start != "" and self.__end != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__start,
-                    self.__end,
-                    (10 * (page - 1)),
+                self.url = (
+                    "https://www.google.com/search?q={}&lr=lang_{}&biw"
+                    "=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,"
+                    "cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
+                        self.__key,
+                        self.__lang,
+                        self.__lang,
+                        self.__start,
+                        self.__end,
+                        (10 * (page - 1)),
+                    )
                 )
             elif self.__period != "":
                 self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(
@@ -485,7 +492,8 @@ class GoogleNews:
     def get_page(self, page=1):
         # this is the one that runs when we do search()
         """
-        Retrieves a specific page from google.com in the news sections into __results.
+        Retrieves a specific page from google.com in
+        the news sections into __results.
         Parameter:
         page = number of the page to be retrieved
         """
@@ -726,7 +734,8 @@ class GoogleNews:
 
     def results(self, sort=False):
         """Returns the __results.
-        New feature: include datatime and sort the articles in decreasing order"""
+        New feature: include datatime and sort the
+        articles in decreasing order"""
         results = self.__results
         if sort:
             try:

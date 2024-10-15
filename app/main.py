@@ -135,8 +135,11 @@ def setup_chrome_proxy(proxy):
 
 def worker(proxy_queue, url, lock, good_proxies):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 "
+        "Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         "Accept-Encoding": "gzip, deflate, br",
         "DNT": "1",
@@ -228,7 +231,6 @@ def setup_chrome_proxy(chrome_options, proxy, cookie):
 
     # Navigate to a page that accepts the cookie
     driver.get("https://www.google.com")
-
     # Inject the cookie into the browser
     if "expiry" in cookie:
         del cookie["expiry"]  # Selenium might not accept expiry, depends on version
@@ -343,8 +345,11 @@ def read_and_parse_proxies(file_path):
 # Function to test the test_proxies function inside the GoogleNews class
 def test_proxy_GoogleNews():
     proxies = ""
-    cookie = None
-    url = "https://www.google.com/search?hl=en&gl=en&q=merck&lr=lang_en&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1en,cdr:1,cd_min:02/01/2020,cd_max:02/28/2020,sbd:1&tbm=nws&start=0"
+    url = (
+        "https://www.google.com/search?hl=en&gl=en&q=merck&lr="
+        "lang_en&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1en,"
+        "cdr:1,cd_min:02/01/2020,cd_max:02/28/2020,sbd:1&tbm=nws&start=0"
+    )
     GoogleNews1 = GoogleNews()
     return GoogleNews1.try_proxies(proxies, url)
 
