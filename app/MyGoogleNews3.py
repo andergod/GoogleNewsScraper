@@ -9,7 +9,6 @@ import random
 import datetime
 from dateutil.relativedelta import relativedelta
 import logging
-import sys
 import pandas as pd
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
