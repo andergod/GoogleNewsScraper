@@ -27,6 +27,7 @@ asyncio = "^3.4.3"
 spacy = "^3.8.2"
 black = "^24.10.0"
 pylint = "^3.3.1"
+pytest = "^8.3.3"
 
 
 [build-system]

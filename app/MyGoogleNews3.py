@@ -160,13 +160,19 @@ class GoogleNews:
         self.cap_monster_client = None
         self.ClientOptions = None
         self.recaptcha_request = None
+        self.url = None
 
+    # get the version of the package
     def getVersion(self):
         return self.__version
+
+    def getResults(self):
+        return self.__results
 
     def enableException(self, enable=True):
         self.__exception = enable
 
+    # Setters
     def set_lang(self, lang):
         self.__lang = lang
 
@@ -215,24 +221,33 @@ class GoogleNews:
         self.cookies = cookie
 
     def check_proxy(self, proxy):
+        """
+        Check if the proxy is working sending a
+        request to httpbin.org/ip
+        """
         types = ["http", "https", "socks4", "socks5"]
         url = "http://httpbin.org/ip"
         for type in types:
             try:
-                proxies = {"http": f"{type}://{proxy}", "https": f"{type}://{proxy}"}
+                proxies = {
+                    "http": f"{type}://{proxy}",
+                    "https": f"{type}://{proxy}",
+                }
                 response = requests.get(url, proxies=proxies, timeout=5)
                 if response.status_code == 200:
                     return type
             except requests.exceptions.RequestException as e:
-                continue
+                print(f"Proxy {type} not working: {e}")
         return None
 
     def set_APIKEY(self, APIKEY):
+        """Set APIKEY for CapMonster"""
         self.APIKEY = APIKEY
         self.ClientOptions = ClientOptions(api_key=APIKEY)
         self.cap_monster_client = CapMonsterClient(options=ClientOptions)
 
     async def solve_catpcha_google(self, website_url, CaptchaKey):
+        """Uses the CaoMonster API to solve the recaptcha"""
         self.recaptcha_request = RecaptchaV2ProxylessRequest(
             websiteUrl=website_url, websiteKey=CaptchaKey
         )
@@ -241,6 +256,7 @@ class GoogleNews:
         # return result['gRecaptchaResponse']
 
     def setup_chrome_proxy(self, chrome_options, proxy, cookie):
+        """Set up the Chrome browser with the proxy and cookie"""
         # chrome_options.add_argument(f'--proxy-server={proxy}')
         ua = UserAgent()
         user_agent = ua.random
@@ -292,6 +308,7 @@ class GoogleNews:
         return driver
 
     def try_proxies(self, proxies, url, max_retries=10):
+        """Try to connect to the url using the provided proxies"""
         for attempt in range(max_retries):
             proxy = "None"
             try:
@@ -311,6 +328,7 @@ class GoogleNews:
         return None
 
     async def build_response(self):
+        """Build the response from the Google search page"""
         # Getting the url and trying a proxy
         full_url = self.url.replace(
             "search?", "search?hl=" + self.__lang + "&gl=" + self.__lang + "&"
@@ -353,12 +371,12 @@ class GoogleNews:
         self.driver.close()
         # Parse the page source with BeautifulSoup
         content = Soup(page_source, "html.parser")
-
         # Perform analysis or extraction from the page
         results = self.initial_html_parse(content)
         return results
 
     def initial_html_parse(self, content):
+        """Parse the initial HTML content"""
         try:
             stats = content.find_all("div", id="result-stats")
             if stats:
@@ -569,6 +587,7 @@ class GoogleNews:
                     tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ""
+                # We are saving the results into objects on the class
                 self.__texts.append(tmp_text)
                 self.__links.append(tmp_link)
                 self.__results.append(

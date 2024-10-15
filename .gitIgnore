@@ -1,6 +1,3 @@
-# Python-specific
-*.py[cod]
-
 # Docker-specific
 *.log
 .env
@@ -14,3 +11,8 @@ venv/
 
 #Ignore _PYCACHE_
 __pycache__/
+
+#Ignore Pycaches
+/app/__pycache__/
+/Tests/__pycache__/
+

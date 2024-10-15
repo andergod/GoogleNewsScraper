@@ -15,8 +15,8 @@
 				"ms-python.vscode-pylance",
 				"ms-toolsai.jupyter",
 				"ms-python.black-formatter",
-				"ms-python.flake8",
-				"esbenp.prettier-vscode"
+				"esbenp.prettier-vscode",
+				"ms-python.pylint"
 			],
 				
 			"settings": {

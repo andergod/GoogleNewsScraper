@@ -31,8 +31,8 @@ import importlib
 import cred
 
 
-# Load nltk model and download the necessary information
 def load_nltk_information():
+    """Load nltk model and download the necessary information"""
     nltk.download("vader_lexicon")
     nltk.download("vader_lexicon")
     nltk.download("stopwords")
@@ -42,8 +42,8 @@ def load_nltk_information():
     return nlp
 
 
-# Define functions used on this script
 def getNews(stock, startdate, enddate, proxies, cookies) -> str:
+    """Function to get news from Google News"""
     googlenews = GoogleNews()
     googlenews = GoogleNews(lang="en", region="US")
     googlenews = GoogleNews(start=startdate, end=enddate)
@@ -61,6 +61,7 @@ def getNews(stock, startdate, enddate, proxies, cookies) -> str:
 
 
 def clean_text(text) -> str:
+    """Function to clean the text"""
     # Tokenize the text
     words = word_tokenize(text)
     # Remove stop words
@@ -74,7 +75,7 @@ def clean_text(text) -> str:
 
 
 def analyze_sentiment(text) -> str:
-    # Analyze sentiment of the text and return a trading recommendation.
+    """Analyze sentiment of the text and return a trading recommendation."""
     sia = SentimentIntensityAnalyzer()
     sentiment_score = sia.polarity_scores(text)["compound"]
     # Assume a simple threshold for sentiment
@@ -87,6 +88,7 @@ def analyze_sentiment(text) -> str:
 
 
 def get_main_currency(text, stock_dict) -> str:
+    """Get the main currency from a list of recognized cryptocurrencies."""
     nlk = load_nltk_information()
     doc = nlk(text)
     # Extract entities recognized as cryptocurrencies
@@ -200,8 +202,8 @@ def test_proxies(file_path, num_workers=50, url="http://www.google.com"):
     return good_proxies
 
 
-# Function to load cookies from JSON file
 def load_cookies(file_path):
+    """Function to load cookies from JSON file"""
     with open(file_path, "r") as f:
         data = json.load(f)
     return data
@@ -342,8 +344,8 @@ def read_and_parse_proxies(file_path):
     return protocol, address
 
 
-# Function to test the test_proxies function inside the GoogleNews class
 def test_proxy_GoogleNews():
+    """Function to test the test_proxies function inside the GoogleNews class"""
     proxies = ""
     url = (
         "https://www.google.com/search?hl=en&gl=en&q=merck&lr="
@@ -355,7 +357,7 @@ def test_proxy_GoogleNews():
 
 
 if __name__ == "__main__":
-    proxies = ""
-    cookie = None
-    # total_text=getNews('merck', '02/01/2020', '02/28/2020', proxies, cookie)
+    PROXIES = ""
+    COOKIES = None
+    total_text = getNews("merck", "02/01/2020", "02/28/2020", proxies, cookie)
     print(test_proxy_GoogleNews())
