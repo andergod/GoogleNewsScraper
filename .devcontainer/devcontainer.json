@@ -27,10 +27,11 @@
 				"editor.formatOnSave": true,
 				"python.formatting.provider": "black",
 				// For using pylint				
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.linting.lintOnSave": true		  
+				"pylint.enabled": true,
+				"pylint.pylintEnabled": true,
+				"pylint.lintOnSave": true		  
 			}
+			
     	}
   	},
 	// "mounts": [

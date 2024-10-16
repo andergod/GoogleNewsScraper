@@ -3,7 +3,7 @@
 import re
 import urllib.request
 import dateparser, copy
-from bs4 import BeautifulSoup as Soup, ResultSet
+from bs4 import BeautifulSoup as Soup
 from dateutil.parser import parse
 import random
 import datetime
@@ -35,6 +35,7 @@ import requests
 import asyncio
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
+from datetime import timedelta
 
 # METHODS
 
@@ -120,6 +121,31 @@ def define_date(date):
         return float("nan")
 
 
+def element_to_dict(element):
+    """Convert a BeautifulSoup element to a JSON Dictionary"""
+    # If it's a NavigableString (plain text), just return the string
+    if isinstance(element, str):
+        return element
+
+    # If it's a tag, return a dictionary with tag name, attributes, and children
+    result = {
+        "tag": element.name,
+        "attributes": element.attrs,  # Tag attributes
+        "children": [],  # To hold any child elements
+    }
+
+    # Recursively convert children (contents) into the dictionary
+    for child in element.contents:
+        if isinstance(child, str):
+            result["children"].append(child.strip())  # Add text nodes directly
+        else:
+            result["children"].append(
+                element_to_dict(child)
+            )  # Recursively process elements
+
+    return result
+
+
 # CLASSES
 
 
@@ -161,6 +187,10 @@ class GoogleNews:
         self.ClientOptions = None
         self.recaptcha_request = None
         self.url = None
+        # Use to dump the result from webscrapping into a json file
+        self.save_results_formatted = False
+        # USe to dump the raw html into a json file
+        self.save_raw_html = False
 
     # get the version of the package
     def getVersion(self):
@@ -173,6 +203,20 @@ class GoogleNews:
         self.__exception = enable
 
     # Setters
+    def set_save_results_formatted(self, save_results_formatted):
+        """
+        Set the save_results_formatted to True or False.
+        If True, the data will be saved into a json file
+        """
+        self.save_results_formatted = save_results_formatted
+
+    def set_save_raw_html(self, save_raw_html):
+        """
+        Set the save_raw_html to True or False.
+        If True, the raw html will be saved into a json file
+        """
+        self.save_raw_html = save_raw_html
+
     def set_lang(self, lang):
         self.__lang = lang
 
@@ -307,8 +351,8 @@ class GoogleNews:
         )
         return driver
 
-    def try_proxies(self, proxies, url, max_retries=10):
-        """Try to connect to the url using the provided proxies"""
+    def open_browser(self, proxies, url, max_retries=10):
+        """Opens the browser with the proxy, abd cc and retries if it fails"""
         for attempt in range(max_retries):
             proxy = "None"
             try:
@@ -323,21 +367,20 @@ class GoogleNews:
                     f"Failed to connect using proxy: {proxy}, Attempt: {attempt + 1}, Error: {e}"
                 )
                 self.driver.quit()
-                sleep(2)  # Wait before retrying
+                sleep(3)  # Wait before retrying
         print("Failed to connect using all provided proxies.")
         return None
 
-    async def build_response(self):
+    async def build_response(self, url):
         """Build the response from the Google search page"""
         # Getting the url and trying a proxy
-        full_url = self.url.replace(
+        full_url = url.replace(
             "search?", "search?hl=" + self.__lang + "&gl=" + self.__lang + "&"
         )
-        self.driver = self.try_proxies(self.proxy, full_url)
+        self.driver = self.open_browser(self.proxy, full_url)
 
         # Check if you have sent to a "Before you continue to Google" page
-        current_url = self.driver.current_url
-        if "consent" in current_url:
+        if "consent" in self.driver.current_url:
             agreed_button = WebDriverWait(self.driver, 30).until(
                 EC.element_to_be_clickable(
                     (By.XPATH, '//button[@aria-label="Accept all"]')
@@ -346,9 +389,8 @@ class GoogleNews:
             agreed_button.click()
             sleep(2)
 
-        current_url = self.driver.current_url
         # In case we have a recaptcha
-        if "sorry" in current_url:
+        if "sorry" in self.driver.current_url:
             sleep(5)
             key = self.driver.find_element(
                 By.XPATH, '//*[@id="recaptcha"]'
@@ -356,11 +398,11 @@ class GoogleNews:
             # recaptchaDataSValue=self.driver.find_element(By.XPATH,
             # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
             recaptcha_response = await self.solve_catpcha_google(
-                current_url, key
+                self.driver.current_url, key
             )  # his is the error
             print(f"recatcha respone: {recaptcha_response}")
             print(f"data-sitekey: {key}")
-            print(f"url: {current_url}")
+            print(f"url: {self.driver.current_url}")
             self.driver.execute_script(
                 f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
             )
@@ -371,11 +413,18 @@ class GoogleNews:
         self.driver.close()
         # Parse the page source with BeautifulSoup
         content = Soup(page_source, "html.parser")
+        if self.save_raw_html:
+            conte_dict = element_to_dict(content)
+            with open("raw_html.json", "w", encoding="utf-8") as f:
+                json.dump(conte_dict, f, indent=4, ensure_ascii=False)
+
         # Perform analysis or extraction from the page
         results = self.initial_html_parse(content)
         return results
 
     def initial_html_parse(self, content):
+        # I should double check the content again to see where the important info
+        # is located. We're not getting description
         """Parse the initial HTML content"""
         try:
             stats = content.find_all("div", id="result-stats")
@@ -396,10 +445,164 @@ class GoogleNews:
             return None
 
     def remove_after_last_fullstop(self, s):
+        """Remove the text after the last '.' in the string.
+        If there is no '.', return the string as is."""
         # Find the last occurrence of the full stop
         last_period_index = s.rfind(".")
         # Slice the string up to the last full stop
         return s[: last_period_index + 1] if last_period_index != -1 else s
+
+    def url_search_formatting(self, page):
+        """Format the URL for the search a first time"""
+        try:
+            if self.__start != "" and self.__end != "":
+                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
+                    self.__key,
+                    self.__lang,
+                    self.__lang,
+                    self.__start,
+                    self.__end,
+                    (10 * (page - 1)),
+                )
+            elif self.__period != "":
+                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(
+                    self.__key,
+                    self.__lang,
+                    self.__lang,
+                    self.__period,
+                    (10 * (page - 1)),
+                )
+            else:
+                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(
+                    self.__key, self.__lang, self.__lang, (10 * (page - 1))
+                )
+        except AttributeError:
+            raise AttributeError("You need to run a search() before using get_page().")
+        return self.url
+
+    def result_parse2(self, result):
+        """Parse the results from the search 2"""
+        for item in result:
+            # Attempt to parse text
+            try:
+                tmp_text = item.find("h3").text.replace("\n", "")
+            except Exception:
+                tmp_text = ""
+            # Attemp to parse link
+            try:
+                tmp_link = item.get("href").replace(
+                    "/url?esrc=s&q=&rct=j&sa=U&url=", ""
+                )
+            except Exception:
+                tmp_link = ""
+            # Attempt to parse media
+            try:
+                tmp_media = (
+                    item.find("div")
+                    .find("div")
+                    .find("div")
+                    .find_next_sibling("div")
+                    .text
+                )
+            except Exception:
+                tmp_media = ""
+            # Attempt to parse date
+            try:
+                tmp_date = item.find("div").find_next_sibling("div").find("span").text
+                tmp_date, tmp_datetime = lexical_date_parser(tmp_date)
+            except Exception:
+                tmp_date = ""
+                tmp_datetime = None
+            # Attempt to parse description
+            try:
+                tmp_desc = self.remove_after_last_fullstop(
+                    item.find("div")
+                    .find_next_sibling("div")
+                    .find("div")
+                    .find_next_sibling("div")
+                    .find("div")
+                    .find("div")
+                    .find("div")
+                    .text
+                ).replace("\n", "")
+            except Exception:
+                tmp_desc = ""
+            # Attempt to parse image
+            try:
+                tmp_img = item.find("img").get("src")
+            except Exception:
+                tmp_img = ""
+            # We are saving the results into objects on the class
+            self.__texts.append(tmp_text)
+            self.__links.append(tmp_link)
+            self.__results.append(
+                {
+                    "title": tmp_text,
+                    "media": tmp_media,
+                    "date": tmp_date,
+                    "datetime": define_date(tmp_date),
+                    "desc": tmp_desc,
+                    "link": tmp_link,
+                    "img": tmp_img,
+                }
+            )
+        return self.__results
+
+    def result_parse_new(self, result):
+        """Potential replacement of the result_parse2. Using beautiful soup"""
+        soup = Soup(result, "html.parser")
+        # Find all anchor tags (<a>)
+        anchor_tags = soup.find_all("a")
+
+        # Loop over all anchor tags and extract data
+        for tag in anchor_tags:
+            # Extract link
+            link = tag.get("href", "No link")
+
+            # Extract the text content
+            text = tag.get_text(strip=True)
+
+            # Extract media (optional: could be svg, img, or other media)
+            media = None
+            img_tag = tag.find("img")
+            if img_tag:
+                media = img_tag.get("src", "No image")
+
+            # Extract title from the text (assuming title is part of the text)
+            title = tag.get("title", text)
+
+            # Extract date or placeholder date (you can refine this if date is available)
+            date = (
+                "No date"  # Replace this with actual logic to extract date if available
+            )
+
+            # Description (desc): placeholder, you might extract this from elsewhere
+            desc = "No description"  # Modify based on your scraping needs
+
+            # Image: using media extracted
+            img = media if media else "No image"
+
+            # Call define_date to process the date string
+            # datetime_value = self.define_date(date)
+            datetime_value = datetime.datetime.now()
+
+            # Append to texts and links lists
+            self.__texts.append(text)
+            self.__links.append(link)
+
+            # Append the data as a dictionary to the results list
+            self.__results.append(
+                {
+                    "title": title,
+                    "media": media,
+                    "date": date,
+                    "datetime": datetime_value,
+                    "desc": desc,
+                    "link": link,
+                    "img": img,
+                }
+            )
+        return self.__results
 
     def page_at(self, page=1):
         """
@@ -514,99 +717,20 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
+        formated_url = self.url_search_formatting(page)
         try:
-            if self.__start != "" and self.__end != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__start,
-                    self.__end,
-                    (10 * (page - 1)),
-                )
-            elif self.__period != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__period,
-                    (10 * (page - 1)),
-                )
-            else:
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(
-                    self.__key, self.__lang, self.__lang, (10 * (page - 1))
-                )
-        except AttributeError:
-            raise AttributeError("You need to run a search() before using get_page().")
-
-        try:
-            result = asyncio.run(self.build_response())
-            for item in result:
-                try:
-                    tmp_text = item.find("h3").text.replace("\n", "")
-                except Exception:
-                    tmp_text = ""
-                try:
-                    tmp_link = item.get("href").replace(
-                        "/url?esrc=s&q=&rct=j&sa=U&url=", ""
-                    )
-                except Exception:
-                    tmp_link = ""
-                try:
-                    tmp_media = (
-                        item.find("div")
-                        .find("div")
-                        .find("div")
-                        .find_next_sibling("div")
-                        .text
-                    )
-                except Exception:
-                    tmp_media = ""
-                try:
-                    tmp_date = (
-                        item.find("div").find_next_sibling("div").find("span").text
-                    )
-                    tmp_date, tmp_datetime = lexical_date_parser(tmp_date)
-                except Exception:
-                    tmp_date = ""
-                    tmp_datetime = None
-                try:
-                    tmp_desc = self.remove_after_last_fullstop(
-                        item.find("div")
-                        .find_next_sibling("div")
-                        .find("div")
-                        .find_next_sibling("div")
-                        .find("div")
-                        .find("div")
-                        .find("div")
-                        .text
-                    ).replace("\n", "")
-                except Exception:
-                    tmp_desc = ""
-                try:
-                    tmp_img = item.find("img").get("src")
-                except Exception:
-                    tmp_img = ""
-                # We are saving the results into objects on the class
-                self.__texts.append(tmp_text)
-                self.__links.append(tmp_link)
-                self.__results.append(
-                    {
-                        "title": tmp_text,
-                        "media": tmp_media,
-                        "date": tmp_date,
-                        "datetime": define_date(tmp_date),
-                        "desc": tmp_desc,
-                        "link": tmp_link,
-                        "img": tmp_img,
-                    }
-                )
+            webscrap_raw = asyncio.run(self.build_response(formated_url))
         except Exception as e_parser:
             print(e_parser)
             if self.__exception:
                 raise Exception(e_parser)
             else:
                 pass
+        content = self.result_parse2(webscrap_raw)
+        # Save the data in Json if save_data is True
+        if self.save_results_formatted:
+            with open("data.json", "w", encoding="utf-8") as f:
+                json.dump(content, f, ensure_ascii=False)
 
     def getpage(self, page=1):
         """Don't remove this, will affect old version user when upgrade"""
