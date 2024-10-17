@@ -47,8 +47,19 @@ def test_get_page():
     ), "At least 8 results should have non-empty title and description"
 
 
-# if __name__ == "__main__":
-#     test_get_page()
+def test_solving_catpcha():
+    """Test solving captcha"""
+    googlenews = GoogleNews()
+    catpcha_url = (
+        "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high"
+    )
+    googlenews.open_browser(" ", catpcha_url, max_retries=2)
+    # The catcha is still not solving, need to solve that
+    googlenews.catcha_solver()
+
+
+if __name__ == "__main__":
+    test_solving_catpcha()
 
 
 # def test_url_formatting():

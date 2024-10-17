@@ -406,7 +406,7 @@ class GoogleNews:
         # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
         recaptcha_response = await self.solve_catpcha_google(
             self.driver.current_url, key
-        )  # his is the error
+        )  # This is the error
         print(f"recatcha respone: {recaptcha_response}")
         print(f"data-sitekey: {key}")
         print(f"url: {self.driver.current_url}")
@@ -435,7 +435,7 @@ class GoogleNews:
 
         # In case we have a recaptcha
         if "sorry" in self.driver.current_url:
-            self.catcha_solver(self.driver)
+            self.catcha_solver()
 
         sleep(2)
 
