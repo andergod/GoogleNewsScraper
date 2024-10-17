@@ -47,11 +47,12 @@ def getNews(stock, startdate, enddate, proxies, cookies) -> str:
     googlenews = GoogleNews()
     googlenews = GoogleNews(lang="en", region="US")
     googlenews = GoogleNews(start=startdate, end=enddate)
-    googlenews.set_APIKEY(cred.APIKEY)
-    googlenews.setproxy(proxies)
+    googlenews.set_api_key(cred.APIKEY)
+    googlenews.set_key(stock)
+    # googlenews.setproxy(proxies)
     # googlenews.set_cookie(cookies)
     # googlenews.get_news(stock)
-    googlenews.search(stock)
+    # googlenews.search(stock)
     result = [googlenews.page_at(i) for i in range(1, 3)]  # get the news from 10 pages
     result = [item for sublist in result for item in sublist]  # flatten the list
     titles = [element["title"] for element in result]

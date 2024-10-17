@@ -190,7 +190,7 @@ class GoogleNews:
         self.chrome_options.add_argument("--v=1")  # Set verbosity to 1
         self.cookies = {}
         self.driver = None
-        self.APIKEY = None
+        self.api_key = None
         self.cap_monster_client = None
         self.ClientOptions = None
         self.recaptcha_request = None
@@ -309,10 +309,10 @@ class GoogleNews:
                 print(f"Proxy {type} not working: {e}")
         return None
 
-    def set_APIKEY(self, APIKEY):
-        """Set APIKEY for CapMonster"""
-        self.APIKEY = APIKEY
-        self.ClientOptions = ClientOptions(api_key=APIKEY)
+    def set_api_key(self, api_key):
+        """Set api_key for CapMonster"""
+        self.api_key = api_key
+        self.ClientOptions = ClientOptions(api_key=api_key)
         self.cap_monster_client = CapMonsterClient(options=ClientOptions)
 
     async def solve_catpcha_google(self, website_url, CaptchaKey):
@@ -396,7 +396,7 @@ class GoogleNews:
         print("Failed to connect using all provided proxies.")
         return None
 
-    async def catcha_solver(self, driver):
+    async def catcha_solver(self):
         """Solve the recaptcha using CapMonster"""
         sleep(5)
         key = self.driver.find_element(By.XPATH, '//*[@id="recaptcha"]').get_attribute(
@@ -414,45 +414,6 @@ class GoogleNews:
             f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
         )
         sleep(2)
-
-    async def build_response(self, url):
-        """Build the response from the Google search page"""
-        # Getting the url and trying a proxy
-        full_url = url.replace(
-            "search?", "search?hl=" + self.__lang + "&gl=" + self.__lang + "&"
-        )
-        self.driver = self.open_browser(self.proxy, full_url)
-
-        # Check if you have sent to a "Before you continue to Google" page
-        if "consent" in self.driver.current_url:
-            agreed_button = WebDriverWait(self.driver, 30).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, '//button[@aria-label="Accept all"]')
-                )
-            )
-            agreed_button.click()
-            sleep(2)
-
-        # In case we have a recaptcha
-        if "sorry" in self.driver.current_url:
-            self.catcha_solver(self.driver)
-
-        sleep(4)
-
-        # After the page has loaded, extract the page source
-        page_source = self.driver.page_source
-        self.driver.close()
-
-        # Parse the page source with BeautifulSoup
-        content = Soup(page_source, "html.parser")
-        if self.save_raw_html:
-            conte_dict = element_to_dict(content)
-            with open("raw_html.json", "w", encoding="utf-8") as f:
-                json.dump(conte_dict, f, indent=4, ensure_ascii=False)
-
-        # Perform analysis or extraction from the page
-        results = self.initial_html_parse(content)
-        return results
 
     async def build_response2(self, url):
         """Reworkign the webscrapping process and the parsing"""
@@ -493,28 +454,6 @@ class GoogleNews:
         # Perform analysis or extraction from the page
         result = self.result_parse_new(page_source)
         return result
-
-    def initial_html_parse(self, content):
-        # I should double check the content again to see where the important info
-        # is located. We're not getting description
-        """Parse the initial HTML content"""
-        try:
-            stats = content.find_all("div", id="result-stats")
-            if stats:
-                stats_text = stats[0].text
-                match = re.search(r"[\d,]+", stats_text)
-                self.__totalcount = (
-                    int(match.group().replace(",", "")) if match else None
-                )
-            else:
-                self.__totalcount = None
-                logging.debug("Total count is not available when sort by date")
-
-            results = content.find_all("a", attrs={"data-ved": True})
-            return results
-        except Exception as e:
-            logging.error(f"Failed to parse content: {e}")
-            return None
 
     def remove_after_last_fullstop(self, s):
         """Remove the text after the last '.' in the string.
@@ -558,102 +497,6 @@ class GoogleNews:
             return self.url
         except AttributeError:
             raise AttributeError("You need to run a search() before using get_page().")
-
-    def url_search_old(self, page=1):
-        """Format the URL for the search a first time"""
-        try:
-            if self.__start != "" and self.__end != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__start,
-                    self.__end,
-                    (10 * (page - 1)),
-                )
-            elif self.__period != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__period,
-                    (10 * (page - 1)),
-                )
-            else:
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(
-                    self.__key, self.__lang, self.__lang, (10 * (page - 1))
-                )
-        except AttributeError:
-            raise AttributeError("You need to run a search() before using get_page().")
-        return self.url
-
-    def result_parse2(self, result):
-        """Parse the results from the search 2"""
-        for item in result:
-            # Attempt to parse text
-            try:
-                tmp_text = item.find("h3").text.replace("\n", "")
-            except Exception:
-                tmp_text = ""
-            # Attemp to parse link
-            try:
-                tmp_link = item.get("href").replace(
-                    "/url?esrc=s&q=&rct=j&sa=U&url=", ""
-                )
-            except Exception:
-                tmp_link = ""
-            # Attempt to parse media
-            try:
-                tmp_media = (
-                    item.find("div")
-                    .find("div")
-                    .find("div")
-                    .find_next_sibling("div")
-                    .text
-                )
-            except Exception:
-                tmp_media = ""
-            # Attempt to parse date
-            try:
-                tmp_date = item.find("div").find_next_sibling("div").find("span").text
-                tmp_date, tmp_datetime = lexical_date_parser(tmp_date)
-            except Exception:
-                tmp_date = ""
-                tmp_datetime = None
-            # Attempt to parse description
-            try:
-                tmp_desc = self.remove_after_last_fullstop(
-                    item.find("div")
-                    .find_next_sibling("div")
-                    .find("div")
-                    .find_next_sibling("div")
-                    .find("div")
-                    .find("div")
-                    .find("div")
-                    .text
-                ).replace("\n", "")
-            except Exception:
-                tmp_desc = ""
-            # Attempt to parse image
-            try:
-                tmp_img = item.find("img").get("src")
-            except Exception:
-                tmp_img = ""
-            # We are saving the results into objects on the class
-            self.__texts.append(tmp_text)
-            self.__links.append(tmp_link)
-            self.__results.append(
-                {
-                    "title": tmp_text,
-                    "media": tmp_media,
-                    "date": tmp_date,
-                    "datetime": define_date(tmp_date),
-                    "desc": tmp_desc,
-                    "link": tmp_link,
-                    "img": tmp_img,
-                }
-            )
-        return self.__results
 
     def result_parse_new(self, html_content):
         """Potential replacement of the result_parse2. Using beautiful soup"""
