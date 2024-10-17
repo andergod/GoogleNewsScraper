@@ -371,6 +371,25 @@ class GoogleNews:
         print("Failed to connect using all provided proxies.")
         return None
 
+    async def catcha_solver(self, driver):
+        """Solve the recaptcha using CapMonster"""
+        sleep(5)
+        key = self.driver.find_element(By.XPATH, '//*[@id="recaptcha"]').get_attribute(
+            "data-sitekey"
+        )
+        # recaptchaDataSValue=self.driver.find_element(By.XPATH,
+        # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
+        recaptcha_response = await self.solve_catpcha_google(
+            self.driver.current_url, key
+        )  # his is the error
+        print(f"recatcha respone: {recaptcha_response}")
+        print(f"data-sitekey: {key}")
+        print(f"url: {self.driver.current_url}")
+        self.driver.execute_script(
+            f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
+        )
+        sleep(2)
+
     async def build_response(self, url):
         """Build the response from the Google search page"""
         # Getting the url and trying a proxy
@@ -391,26 +410,14 @@ class GoogleNews:
 
         # In case we have a recaptcha
         if "sorry" in self.driver.current_url:
-            sleep(5)
-            key = self.driver.find_element(
-                By.XPATH, '//*[@id="recaptcha"]'
-            ).get_attribute("data-sitekey")
-            # recaptchaDataSValue=self.driver.find_element(By.XPATH,
-            # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
-            recaptcha_response = await self.solve_catpcha_google(
-                self.driver.current_url, key
-            )  # his is the error
-            print(f"recatcha respone: {recaptcha_response}")
-            print(f"data-sitekey: {key}")
-            print(f"url: {self.driver.current_url}")
-            self.driver.execute_script(
-                f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
-            )
-            sleep(2)
+            self.catcha_solver(self.driver)
+
+        sleep(4)
 
         # After the page has loaded, extract the page source
         page_source = self.driver.page_source
         self.driver.close()
+
         # Parse the page source with BeautifulSoup
         content = Soup(page_source, "html.parser")
         if self.save_raw_html:
@@ -421,6 +428,46 @@ class GoogleNews:
         # Perform analysis or extraction from the page
         results = self.initial_html_parse(content)
         return results
+
+    async def build_response2(self, url):
+        """Reworkign the webscrapping process and the parsing"""
+        # Getting the url and trying a proxy
+        full_url = url.replace(
+            "search?", "search?hl=" + self.__lang + "&gl=" + self.__lang + "&"
+        )
+        self.driver = self.open_browser(self.proxy, full_url)
+
+        # Check if you have sent to a "Before you continue to Google" page
+        if "consent" in self.driver.current_url:
+            agreed_button = WebDriverWait(self.driver, 30).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, '//button[@aria-label="Accept all"]')
+                )
+            )
+            agreed_button.click()
+            sleep(2)
+
+        # In case we have a recaptcha
+        if "sorry" in self.driver.current_url:
+            self.catcha_solver(self.driver)
+
+        sleep(2)
+
+        # After the page has loaded, extract the page source
+        page_source = self.driver.page_source
+
+        # Parse the page source with BeautifulSoup
+        pretty_html = Soup(page_source, "html.parser").prettify()
+        if self.save_raw_html:
+            with open("raw_html.html", "w", encoding="utf-8") as f:
+                f.write(pretty_html)
+
+        # Close the webdriver
+        self.driver.close()
+
+        # Perform analysis or extraction from the page
+        result = self.result_parse_new(page_source)
+        return result
 
     def initial_html_parse(self, content):
         # I should double check the content again to see where the important info
@@ -548,58 +595,46 @@ class GoogleNews:
             )
         return self.__results
 
-    def result_parse_new(self, result):
+    def result_parse_new(self, html_content):
         """Potential replacement of the result_parse2. Using beautiful soup"""
-        soup = Soup(result, "html.parser")
-        # Find all anchor tags (<a>)
-        anchor_tags = soup.find_all("a")
+        # Initialize BeautifulSoup parser
+        soup = Soup(html_content, "html.parser")
 
-        # Loop over all anchor tags and extract data
-        for tag in anchor_tags:
-            # Extract link
-            link = tag.get("href", "No link")
+        # Find all div elements with class 'SoAPf'
+        articles = soup.find_all("div", class_="SoAPf")
 
-            # Extract the text content
-            text = tag.get_text(strip=True)
+        for article in articles:
+            # Extract title from the div with role="heading"
+            title_tag = article.find("div", role="heading")
+            title = title_tag.get_text(strip=True) if title_tag else "No title"
 
-            # Extract media (optional: could be svg, img, or other media)
-            media = None
-            img_tag = tag.find("img")
-            if img_tag:
-                media = img_tag.get("src", "No image")
+            # Extract description from the div with class 'GI74Re'
+            desc_tag = article.find("div", class_="GI74Re")
+            desc = desc_tag.get_text(strip=True) if desc_tag else "No description"
 
-            # Extract title from the text (assuming title is part of the text)
-            title = tag.get("title", text)
+            # Extract date from the span element within the div with class 'OSrXXb'
+            date_tag = article.find("div", class_="OSrXXb").find("span")
+            date = date_tag.get_text(strip=True) if date_tag else "No date"
 
-            # Extract date or placeholder date (you can refine this if date is available)
-            date = (
-                "No date"  # Replace this with actual logic to extract date if available
+            # Extract link if present (optional, depending on your HTML structure)
+            link_tag = article.find_parent("a")  # Assuming <a> wraps around <div>
+            link = (
+                link_tag["href"]
+                if link_tag and link_tag.has_attr("href")
+                else "No link"
             )
 
-            # Description (desc): placeholder, you might extract this from elsewhere
-            desc = "No description"  # Modify based on your scraping needs
-
-            # Image: using media extracted
-            img = media if media else "No image"
-
-            # Call define_date to process the date string
-            # datetime_value = self.define_date(date)
-            datetime_value = datetime.datetime.now()
-
-            # Append to texts and links lists
-            self.__texts.append(text)
+            # Add title and link to separate lists
+            self.__texts.append(title)
             self.__links.append(link)
 
-            # Append the data as a dictionary to the results list
+            # Append extracted information into the results list
             self.__results.append(
                 {
                     "title": title,
-                    "media": media,
                     "date": date,
-                    "datetime": datetime_value,
                     "desc": desc,
                     "link": link,
-                    "img": img,
                 }
             )
         return self.__results
@@ -719,18 +754,18 @@ class GoogleNews:
         """
         formated_url = self.url_search_formatting(page)
         try:
-            webscrap_raw = asyncio.run(self.build_response(formated_url))
+            content = asyncio.run(self.build_response2(formated_url))
         except Exception as e_parser:
             print(e_parser)
             if self.__exception:
                 raise Exception(e_parser)
             else:
                 pass
-        content = self.result_parse2(webscrap_raw)
+        # content = self.result_parse2(webscrap_raw)
         # Save the data in Json if save_data is True
         if self.save_results_formatted:
             with open("data.json", "w", encoding="utf-8") as f:
-                json.dump(content, f, ensure_ascii=False)
+                json.dump(content, f, ensure_ascii=False, indent=4)
 
     def getpage(self, page=1):
         """Don't remove this, will affect old version user when upgrade"""
