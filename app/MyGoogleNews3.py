@@ -36,6 +36,14 @@ import asyncio
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
 from datetime import timedelta
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    TimeoutException,
+    ElementNotInteractableException,
+    StaleElementReferenceException,
+    WebDriverException,
+    InvalidArgumentException,
+)
 
 # METHODS
 
@@ -189,8 +197,10 @@ class GoogleNews:
         self.url = None
         # Use to dump the result from webscrapping into a json file
         self.save_results_formatted = False
-        # USe to dump the raw html into a json file
+        # Use to dump the raw html into a json file
         self.save_raw_html = False
+        # Use to return the results from the webscrapping
+        self.return_results = False
 
     # get the version of the package
     def getVersion(self):
@@ -203,6 +213,13 @@ class GoogleNews:
         self.__exception = enable
 
     # Setters
+    def set_return_results(self, return_results):
+        """
+        Set the return_results to True or False.
+        If True, the results will be returned by the get_page() method
+        """
+        self.return_results = return_results
+
     def set_save_results_formatted(self, save_results_formatted):
         """
         Set the save_results_formatted to True or False.
@@ -246,6 +263,10 @@ class GoogleNews:
         """Don't remove this, will affect old version user when upgrade"""
         self.set_encode(encode)
 
+    def set_key(self, key):
+        """Set the key for the search"""
+        self.__key = key
+
     def search(self, key):
         """
         Searches for a term in google.com in the news section and retrieves
@@ -256,7 +277,11 @@ class GoogleNews:
         self.__key = key
         if self.__encode != "":
             self.__key = urllib.request.quote(self.__key.encode(self.__encode))
-        self.get_page()
+        # In case we want to return the results
+        if self.return_results:
+            return self.get_page()
+        else:
+            self.get_page()
 
     def setproxy(self, proxy):
         self.proxy = proxy
@@ -499,7 +524,42 @@ class GoogleNews:
         # Slice the string up to the last full stop
         return s[: last_period_index + 1] if last_period_index != -1 else s
 
-    def url_search_formatting(self, page):
+    def url_search_formatting(self, page=1, key=""):
+        """Format the URL for the search a first time"""
+        try:
+            # Base URL and common parameters
+            base_url = "https://www.google.com/search"
+            common_params = (
+                f"q={self.__key}&lr=lang_{self.__lang}&"
+                "biw=1920&bih=976&source=lnt&&tbm=nws&sbd=1"
+            )  # Note the double &&
+
+            # Pagination parameter
+            pagination_param = f"&start={10 * (page - 1)}"
+
+            # Handle the different cases for date or period filters
+            if self.__start and self.__end:
+                # Date range filter
+                date_params = (
+                    f"&tbs=lr:lang_1{self.__lang},cdr:1,cd_min:{self.__start},"
+                    f"cd_max:{self.__end}"
+                )
+                self.url = f"{base_url}?{common_params}{date_params}{pagination_param}"
+            elif self.__period:
+                # Pre-defined period filter
+                period_params = f"&tbs=lr:lang_1{self.__lang},qdr:{self.__period}"
+                self.url = (
+                    f"{base_url}?{common_params}{period_params}{pagination_param}"
+                )
+            else:
+                # No date or period filter, just language and pagination
+                self.url = f"{base_url}?{common_params}{pagination_param}"
+
+            return self.url
+        except AttributeError:
+            raise AttributeError("You need to run a search() before using get_page().")
+
+    def url_search_old(self, page=1):
         """Format the URL for the search a first time"""
         try:
             if self.__start != "" and self.__end != "":
@@ -646,102 +706,23 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
-        results = []
+        # Getting the formatted URL
+        formated_url = self.url_search_formatting(page, self.__key)
+        # Executing and the webscrap and potential exceptions
         try:
-            if self.__start != "" and self.__end != "":
-                self.url = (
-                    "https://www.google.com/search?q={}&lr=lang_{}&biw"
-                    "=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,"
-                    "cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(
-                        self.__key,
-                        self.__lang,
-                        self.__lang,
-                        self.__start,
-                        self.__end,
-                        (10 * (page - 1)),
-                    )
-                )
-            elif self.__period != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(
-                    self.__key,
-                    self.__lang,
-                    self.__lang,
-                    self.__period,
-                    (10 * (page - 1)),
-                )
-            else:
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(
-                    self.__key, self.__lang, self.__lang, (10 * (page - 1))
-                )
-        except AttributeError:
-            raise AttributeError("You need to run a search() before using get_page().")
-        try:
-            result = asyncio.run(self.build_response())
-            for item in result:
-                try:
-                    tmp_text = item.find("h3").text.replace("\n", "")
-                except Exception:
-                    tmp_text = ""
-                try:
-                    tmp_link = item.get("href").replace(
-                        "/url?esrc=s&q=&rct=j&sa=U&url=", ""
-                    )
-                except Exception:
-                    tmp_link = ""
-                try:
-                    tmp_media = (
-                        item.find("div")
-                        .find("div")
-                        .find("div")
-                        .find_next_sibling("div")
-                        .text
-                    )
-                except Exception:
-                    tmp_media = ""
-                try:
-                    tmp_date = (
-                        item.find("div").find_next_sibling("div").find("span").text
-                    )
-                    tmp_date, tmp_datetime = lexical_date_parser(tmp_date)
-                except Exception:
-                    tmp_date = ""
-                    tmp_datetime = None
-                try:
-                    tmp_desc = self.remove_after_last_fullstop(
-                        item.find("div")
-                        .find_next_sibling("div")
-                        .find("div")
-                        .find_next_sibling("div")
-                        .find("div")
-                        .find("div")
-                        .find("div")
-                        .text
-                    ).replace("\n", "")
-                except Exception:
-                    tmp_desc = ""
-                try:
-                    tmp_img = item.find("img").get("src")
-                except Exception:
-                    tmp_img = ""
-                self.__texts.append(tmp_text)
-                self.__links.append(tmp_link)
-                results.append(
-                    {
-                        "title": tmp_text,
-                        "media": tmp_media,
-                        "date": tmp_date,
-                        "datetime": define_date(tmp_date),
-                        "desc": tmp_desc,
-                        "link": tmp_link,
-                        "img": tmp_img,
-                    }
-                )
-        except Exception as e_parser:
-            print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
+            results = asyncio.run(self.build_response2(formated_url))
+        except NoSuchElementException as e_no_element:
+            print(f"Element not found: {e_no_element}")
+        except TimeoutException as e_timeout:
+            print(f"Timeout occurred: {e_timeout}")
+        except ElementNotInteractableException as e_not_interactable:
+            print(f"Element not interactable: {e_not_interactable}")
+        except StaleElementReferenceException as e_stale:
+            print(f"Stale element reference: {e_stale}")
+        except InvalidArgumentException as e_invalid_arg:
+            print(f"Invalid argument: {e_invalid_arg}")
+        except WebDriverException as e_webdriver:
+            print(f"WebDriver error: {e_webdriver}")
         return results
 
     def get_page(self, page=1):
@@ -752,20 +733,30 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
-        formated_url = self.url_search_formatting(page)
+        formatted_url = self.url_search_formatting(page, self.__key)
+        # formatted_url = self.url_search_old(page)
+        # Executing and the webscrap and potential exceptions
         try:
-            content = asyncio.run(self.build_response2(formated_url))
-        except Exception as e_parser:
-            print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
-        # content = self.result_parse2(webscrap_raw)
-        # Save the data in Json if save_data is True
+            content = asyncio.run(self.build_response2(formatted_url))
+        except NoSuchElementException as e_no_element:
+            print(f"Element not found: {e_no_element}")
+        except TimeoutException as e_timeout:
+            print(f"Timeout occurred: {e_timeout}")
+        except ElementNotInteractableException as e_not_interactable:
+            print(f"Element not interactable: {e_not_interactable}")
+        except StaleElementReferenceException as e_stale:
+            print(f"Stale element reference: {e_stale}")
+        except InvalidArgumentException as e_invalid_arg:
+            print(f"Invalid argument: {e_invalid_arg}")
+        except WebDriverException as e_webdriver:
+            print(f"WebDriver error: {e_webdriver}")
+
+        # Save the results into a json file
         if self.save_results_formatted:
             with open("data.json", "w", encoding="utf-8") as f:
                 json.dump(content, f, ensure_ascii=False, indent=4)
+
+        return content
 
     def getpage(self, page=1):
         """Don't remove this, will affect old version user when upgrade"""
