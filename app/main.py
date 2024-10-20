@@ -1,34 +1,37 @@
-# Import packages
-import sys
-from MyGoogleNews3 import GoogleNews
-import pandas as pd
+""" main module used for doing webscrapping and data analysis of 
+ our data and potential trading recommendations"""
+
+# Local imports
+import datetime
+import logging
+import threading
+import queue
+from pathlib import Path
+import json
+from time import sleep
+import random
+
+# Third-party imports
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import spacy
-import datetime
 import numpy as np
-import urllib.request
-import logging
-import threading
 import requests
-import queue
-import http.client as http_client
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-import random
-from time import sleep
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from fake_useragent import UserAgent
 from selenium_stealth import stealth
-import json
-import importlib
+
+# From other files
 import cred
+from google_news_webscrap import GoogleNews
 
 
 def load_nltk_information():
@@ -42,18 +45,13 @@ def load_nltk_information():
     return nlp
 
 
-def getNews(stock, startdate, enddate, proxies, cookies) -> str:
+def getNews(stock, start_date, end_date, proxies, cookies) -> str:
     """Function to get news from Google News"""
     googlenews = GoogleNews()
-    googlenews = GoogleNews(lang="en", region="US")
-    googlenews = GoogleNews(start=startdate, end=enddate)
+    googlenews = GoogleNews(lang="en", region="US", start=start_date, end=end_date)
     googlenews.set_api_key(cred.APIKEY)
     googlenews.set_key(stock)
-    # googlenews.setproxy(proxies)
-    # googlenews.set_cookie(cookies)
-    # googlenews.get_news(stock)
-    # googlenews.search(stock)
-    result = [googlenews.page_at(i) for i in range(1, 3)]  # get the news from 10 pages
+    result = [googlenews.page_at(i) for i in range(1, 10)]  # get the news from 10 pages
     result = [item for sublist in result for item in sublist]  # flatten the list
     titles = [element["title"] for element in result]
     descriptions = [element["desc"] for element in result]
@@ -128,14 +126,6 @@ def get_week_pairs(start_year, end_year):
     return week_pairs_np
 
 
-def setup_chrome_proxy(proxy):
-    chrome_options = Options()
-    chrome_options.add_argument(f"--proxy-server={proxy}")
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
-
-
 def worker(proxy_queue, url, lock, good_proxies):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -173,8 +163,8 @@ def worker(proxy_queue, url, lock, good_proxies):
 
 def test_proxies(file_path, num_workers=50, url="http://www.google.com"):
 
-    with open(file_path, "r") as file:
-        proxies = [line.strip() for line in file if line.strip()]
+    with open(file_path, "r") as proxy_file:
+        proxies = [line.strip() for line in proxy_file if line.strip()]
 
     proxy_queue = queue.Queue()
     for proxy in proxies:
@@ -335,8 +325,8 @@ def getting_cookies(file_path, url="http://www.google.com"):
 
 def read_and_parse_proxies(file_path):
     protocol, address = [], []
-    with open(file_path, "r") as file:
-        for line in file:
+    with open(file_path, "r") as proxy_file:
+        for line in proxy_file:
             line = line.strip()  # Remove any leading/trailing whitespace
             if line:
                 protocol_val, address_val = line.split("://")
@@ -360,5 +350,7 @@ def test_proxy_GoogleNews():
 if __name__ == "__main__":
     PROXIES = ""
     COOKIES = None
-    total_text = getNews("merck", "02/01/2020", "02/28/2020", proxies, cookie)
-    print(test_proxy_GoogleNews())
+    TOTAL_TEXT = getNews("merck", "02/01/2020", "02/28/2020", PROXIES, COOKIES)
+    FILE_PATH = Path("..") / "data" / "merk_Feb2020.txt"
+    with open(FILE_PATH, "w", encoding="utf-8") as file:
+        file.write(TOTAL_TEXT)

@@ -1,3 +1,3 @@
 # Manually set DISPLAY to the correct Windows IP
-export DISPLAY=192.168.55.109:0.0
+export DISPLAY=172.24.224.1:0.0
 echo "DISPLAY is set to: $DISPLAY"

@@ -1,10 +1,11 @@
-# from app.MyGoogleNews3 import *
-import asyncio
-import app.cred as cred
-import pytest
+""" this file contains the tests for the googlenews class. 
+The test mainly use selenium webscrapping methods and test our connection 
+to our catcha API solver."""
 
+import pytest
 from selenium.webdriver.common.by import By
-from app.MyGoogleNews3 import GoogleNews
+import app.cred as cred
+from app.google_news_webscrap import GoogleNews
 
 
 def test_search():
@@ -54,7 +55,8 @@ def test_get_page():
 
 @pytest.mark.asyncio
 async def test_solving_catpcha():
-    """Test solving captcha"""
+    """Test solving captcha. It works on the recaptcha demo passing
+    the g-recaptcha script into the browser"""
     googlenews = GoogleNews()
     catpcha_url = "https://google.com/recaptcha/api2/demo"
     googlenews.set_api_key(cred.APIKEY)

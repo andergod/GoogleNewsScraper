@@ -1,41 +1,25 @@
-# MODULES
-# Using my own proxy given that proxy rotation is not working
-import re
+"""main class used for webscrappinng using 
+selenium and capMonster to solve the recaptcha"""
+
+# Local imports
 import urllib.request
-import dateparser, copy
-from bs4 import BeautifulSoup as Soup
-from dateutil.parser import parse
+import copy
 import random
 import datetime
-from dateutil.relativedelta import relativedelta
-import logging
-import pandas as pd
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-import spacy
-import datetime
-import numpy as np
-import urllib.request
-import logging
-import http.client as http_client
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
+import json
+import asyncio
 from time import sleep
+
+# Third party imports
+from bs4 import BeautifulSoup as Soup
+from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
+import dateparser
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from fake_useragent import UserAgent
-from selenium_stealth import stealth
-import json
-import requests
-import asyncio
-from capmonstercloudclient import CapMonsterClient, ClientOptions
-from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
-from datetime import timedelta
 from selenium.common.exceptions import (
     NoSuchElementException,
     TimeoutException,
@@ -44,6 +28,11 @@ from selenium.common.exceptions import (
     WebDriverException,
     InvalidArgumentException,
 )
+from fake_useragent import UserAgent
+from selenium_stealth import stealth
+import requests
+from capmonstercloudclient import CapMonsterClient, ClientOptions
+from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
 
 # METHODS
 
@@ -129,35 +118,11 @@ def define_date(date):
         return float("nan")
 
 
-def element_to_dict(element):
-    """Convert a BeautifulSoup element to a JSON Dictionary"""
-    # If it's a NavigableString (plain text), just return the string
-    if isinstance(element, str):
-        return element
-
-    # If it's a tag, return a dictionary with tag name, attributes, and children
-    result = {
-        "tag": element.name,
-        "attributes": element.attrs,  # Tag attributes
-        "children": [],  # To hold any child elements
-    }
-
-    # Recursively convert children (contents) into the dictionary
-    for child in element.contents:
-        if isinstance(child, str):
-            result["children"].append(child.strip())  # Add text nodes directly
-        else:
-            result["children"].append(
-                element_to_dict(child)
-            )  # Recursively process elements
-
-    return result
-
-
 # CLASSES
 
 
 class GoogleNews:
+    """Main class used for webscrapping using selenium and capMonster to solve the recaptcha"""
 
     def __init__(
         self, lang="en", period="", start="", end="", encode="utf-8", region=None
@@ -289,6 +254,7 @@ class GoogleNews:
     def set_cookie(self, cookie):
         self.cookies = cookie
 
+    # Functions relating proxy, webscrapping managements
     def check_proxy(self, proxy):
         """
         Check if the proxy is working sending a
@@ -308,21 +274,6 @@ class GoogleNews:
             except requests.exceptions.RequestException as e:
                 print(f"Proxy {type} not working: {e}")
         return None
-
-    def set_api_key(self, api_key):
-        """Set api_key for CapMonster"""
-        self.api_key = api_key
-        self.ClientOptions = ClientOptions(api_key=api_key)
-        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
-
-    async def solve_catpcha_google(self, website_url, captcha_key):
-        """Uses the CapMonster API to solve the recaptcha"""
-        self.recaptcha_request = RecaptchaV2ProxylessRequest(
-            websiteUrl=website_url, websiteKey=captcha_key
-        )
-        result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
-        return result
-        # return result['gRecaptchaResponse']
 
     def setup_chrome_proxy(self, chrome_options, proxy, cookie):
         """Set up the Chrome browser with the proxy and cookie"""
@@ -375,6 +326,22 @@ class GoogleNews:
             fix_hairline=True,
         )
         return driver
+
+    # Functions relating to CapMonster
+    def set_api_key(self, api_key):
+        """Set api_key for CapMonster"""
+        self.api_key = api_key
+        self.ClientOptions = ClientOptions(api_key=api_key)
+        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
+
+    async def solve_catpcha_google(self, website_url, captcha_key):
+        """Uses the CapMonster API to solve the recaptcha"""
+        self.recaptcha_request = RecaptchaV2ProxylessRequest(
+            websiteUrl=website_url, websiteKey=captcha_key
+        )
+        result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
+        return result
+        # return result['gRecaptchaResponse']
 
     def open_browser(self, proxies, url, max_retries=10):
         """Opens the browser with the proxy, abd cc and retries if it fails"""
@@ -434,11 +401,8 @@ class GoogleNews:
 
     async def build_response2(self, url):
         """Reworkign the webscrapping process and the parsing"""
-        # Getting the url and trying a proxy
-        full_url = url.replace(
-            "search?", "search?hl=" + self.__lang + "&gl=" + self.__lang + "&"
-        )
-        self.driver = self.open_browser(self.proxy, full_url)
+
+        self.driver = self.open_browser(self.proxy, url)
 
         # Check if you have sent to a "Before you continue to Google" page
         if "consent" in self.driver.current_url:
@@ -469,18 +433,10 @@ class GoogleNews:
         self.driver.close()
 
         # Perform analysis or extraction from the page
-        result = self.result_parse_new(page_source)
+        result = self.result_parse(page_source)
         return result
 
-    def remove_after_last_fullstop(self, s):
-        """Remove the text after the last '.' in the string.
-        If there is no '.', return the string as is."""
-        # Find the last occurrence of the full stop
-        last_period_index = s.rfind(".")
-        # Slice the string up to the last full stop
-        return s[: last_period_index + 1] if last_period_index != -1 else s
-
-    def url_search_formatting(self, page=1, key=""):
+    def url_search_formatting(self, page=1):
         """Format the URL for the search a first time"""
         try:
             # Base URL and common parameters
@@ -515,8 +471,8 @@ class GoogleNews:
         except AttributeError:
             raise AttributeError("You need to run a search() before using get_page().")
 
-    def result_parse_new(self, html_content):
-        """Potential replacement of the result_parse2. Using beautiful soup"""
+    def result_parse(self, html_content):
+        """Parse html results using beautiful soup"""
         # Initialize BeautifulSoup parser
         soup = Soup(html_content, "html.parser")
 
@@ -567,7 +523,7 @@ class GoogleNews:
         page = number of the page to be retrieved
         """
         # Getting the formatted URL
-        formated_url = self.url_search_formatting(page, self.__key)
+        formated_url = self.url_search_formatting(page)
         # Executing and the webscrap and potential exceptions
         try:
             results = asyncio.run(self.build_response2(formated_url))
@@ -593,7 +549,7 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
-        formatted_url = self.url_search_formatting(page, self.__key)
+        formatted_url = self.url_search_formatting(page)
         # formatted_url = self.url_search_old(page)
         # Executing and the webscrap and potential exceptions
         try:
@@ -617,10 +573,6 @@ class GoogleNews:
                 json.dump(content, f, ensure_ascii=False, indent=4)
 
         return content
-
-    def getpage(self, page=1):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.get_page(page)
 
     def get_news(self, key="", deamplify=False):
         if key != "":
