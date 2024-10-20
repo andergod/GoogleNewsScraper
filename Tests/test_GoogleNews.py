@@ -1,4 +1,9 @@
 # from app.MyGoogleNews3 import *
+import asyncio
+import app.cred as cred
+import pytest
+
+from selenium.webdriver.common.by import By
 from app.MyGoogleNews3 import GoogleNews
 
 
@@ -47,19 +52,23 @@ def test_get_page():
     ), "At least 8 results should have non-empty title and description"
 
 
-def test_solving_catpcha():
+@pytest.mark.asyncio
+async def test_solving_catpcha():
     """Test solving captcha"""
     googlenews = GoogleNews()
-    catpcha_url = (
-        "https://lessons.zennolab.com/captchas/recaptcha/v2_simple.php?level=high"
-    )
-    googlenews.open_browser(" ", catpcha_url, max_retries=2)
+    catpcha_url = "https://google.com/recaptcha/api2/demo"
+    googlenews.set_api_key(cred.APIKEY)
+    googlenews.open_browser(" ", catpcha_url, max_retries=1)
     # The catcha is still not solving, need to solve that
-    googlenews.catcha_solver()
+    await googlenews.catcha_solver()
+    # Getting a confinrmation message
+    pass_sign = googlenews.driver.find_element(By.XPATH, "/html/body/div").text
+    googlenews.driver.quit()
+    assert "Success" in pass_sign
 
 
-if __name__ == "__main__":
-    test_solving_catpcha()
+# if __name__ == "__main__":
+#     asyncio.run(test_solving_catpcha())
 
 
 # def test_url_formatting():

@@ -313,12 +313,12 @@ class GoogleNews:
         """Set api_key for CapMonster"""
         self.api_key = api_key
         self.ClientOptions = ClientOptions(api_key=api_key)
-        self.cap_monster_client = CapMonsterClient(options=ClientOptions)
+        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
 
-    async def solve_catpcha_google(self, website_url, CaptchaKey):
-        """Uses the CaoMonster API to solve the recaptcha"""
+    async def solve_catpcha_google(self, website_url, captcha_key):
+        """Uses the CapMonster API to solve the recaptcha"""
         self.recaptcha_request = RecaptchaV2ProxylessRequest(
-            websiteUrl=website_url, websiteKey=CaptchaKey
+            websiteUrl=website_url, websiteKey=captcha_key
         )
         result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
         return result
@@ -398,22 +398,39 @@ class GoogleNews:
 
     async def catcha_solver(self):
         """Solve the recaptcha using CapMonster"""
-        sleep(5)
-        key = self.driver.find_element(By.XPATH, '//*[@id="recaptcha"]').get_attribute(
-            "data-sitekey"
-        )
-        # recaptchaDataSValue=self.driver.find_element(By.XPATH,
-        # '//*[@id="recaptcha"]').get_attribute('data-s') if needed
+        sleep(2)  # Sleep to allow the page to fully load
+
+        key = None
+
+        # Check if the element with id="recaptcha" exists
+        recaptcha_element = self.driver.find_elements(By.XPATH, '//*[@id="recaptcha"]')
+        if recaptcha_element:
+            # If it exists, extract the 'data-sitekey' from it
+            key = recaptcha_element[0].get_attribute("data-sitekey")
+        else:
+            # Check for the element with class "g-recaptcha"
+            grecaptcha_element = self.driver.find_elements(
+                By.XPATH, '//div[contains(@class,"g-recaptcha")]'
+            )
+            if grecaptcha_element:
+                # If it exists, extract the 'data-sitekey' from it
+                key = grecaptcha_element[0].get_attribute("data-sitekey")
+
+        # If neither element is found, raise an exception
+        if key is None:
+            raise ValueError("No reCAPTCHA element found on the page.")
+
+        # If we successfully found a sitekey
         recaptcha_response = await self.solve_catpcha_google(
             self.driver.current_url, key
-        )  # This is the error
-        print(f"recatcha respone: {recaptcha_response}")
-        print(f"data-sitekey: {key}")
-        print(f"url: {self.driver.current_url}")
-        self.driver.execute_script(
-            f'document.getElementById("g-recaptcha-response").innerHTML="{recaptcha_response}";'
         )
-        sleep(2)
+        solve_actions = recaptcha_response["gRecaptchaResponse"]
+
+        # Inject the response into the reCAPTCHA response field
+        self.driver.execute_script(
+            f'document.getElementById("g-recaptcha-response").innerHTML="{solve_actions}";'
+        )
+        self.driver.find_element(By.ID, "recaptcha-demo-submit").click()
 
     async def build_response2(self, url):
         """Reworkign the webscrapping process and the parsing"""
