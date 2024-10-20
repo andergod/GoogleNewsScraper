@@ -19,9 +19,7 @@ from nltk.tokenize import word_tokenize
 import spacy
 import numpy as np
 import requests
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -30,8 +28,8 @@ from fake_useragent import UserAgent
 from selenium_stealth import stealth
 
 # From other files
-import cred
-from google_news_webscrap import GoogleNews
+import app.cred as cred
+from app.google_news_webscrap import GoogleNews
 
 
 def load_nltk_information():
@@ -51,8 +49,10 @@ def getNews(stock, start_date, end_date, proxies, cookies) -> str:
     googlenews = GoogleNews(lang="en", region="US", start=start_date, end=end_date)
     googlenews.set_api_key(cred.APIKEY)
     googlenews.set_key(stock)
-    result = [googlenews.page_at(i) for i in range(1, 10)]  # get the news from 10 pages
-    result = [item for sublist in result for item in sublist]  # flatten the list
+    result = googlenews.new_from_pages([1, 2, 3, 4])
+    result = [
+        item for sublist in result.values() for item in sublist
+    ]  # flatten the list
     titles = [element["title"] for element in result]
     descriptions = [element["desc"] for element in result]
     total_text = "".join(titles + descriptions)
@@ -86,7 +86,7 @@ def analyze_sentiment(text) -> str:
         return "Hold"
 
 
-def get_main_currency(text, stock_dict) -> str:
+def get_stock(text, stock_dict) -> str:
     """Get the main currency from a list of recognized cryptocurrencies."""
     nlk = load_nltk_information()
     doc = nlk(text)
@@ -351,6 +351,6 @@ if __name__ == "__main__":
     PROXIES = ""
     COOKIES = None
     TOTAL_TEXT = getNews("merck", "02/01/2020", "02/28/2020", PROXIES, COOKIES)
-    FILE_PATH = Path("..") / "data" / "merk_Feb2020.txt"
+    FILE_PATH = Path("data") / "merck_Feb2020.txt"
     with open(FILE_PATH, "w", encoding="utf-8") as file:
         file.write(TOTAL_TEXT)

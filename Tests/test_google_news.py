@@ -37,7 +37,7 @@ def test_get_page():
     # Set up the GoogleNews object
     googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
     googlenews.set_key(search)
-    webscrap = [googlenews.page_at(i) for i in range(1, 3)]
+    webscrap = [googlenews.page_at(i) for i in range(1, 4)]
     webscrap = [item for sublist in webscrap for item in sublist]  # flatten the list
 
     # Assert that there are at least 8 result with non-empty title and description
@@ -51,6 +51,17 @@ def test_get_page():
     assert (
         non_empty_count >= 8
     ), "At least 8 results should have non-empty title and description"
+
+
+def test_news_from_pages():
+    """Test get a list of pages reusing the same webscrap object"""
+    # Start , end date and search
+    startdate, enddate, search = "02/01/2020", "02/28/2020", "covid-19"
+    # Set up the GoogleNews object
+    googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
+    googlenews.set_key(search)
+    webscrap = googlenews.new_from_pages([1, 2, 3])
+    assert any(len(content_per_page) > 0 for content_per_page in webscrap.values())
 
 
 @pytest.mark.asyncio
@@ -70,7 +81,7 @@ async def test_solving_catpcha():
 
 
 # if __name__ == "__main__":
-#     asyncio.run(test_solving_catpcha())
+#     test_news_from_pages()
 
 
 # def test_url_formatting():

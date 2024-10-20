@@ -327,22 +327,6 @@ class GoogleNews:
         )
         return driver
 
-    # Functions relating to CapMonster
-    def set_api_key(self, api_key):
-        """Set api_key for CapMonster"""
-        self.api_key = api_key
-        self.ClientOptions = ClientOptions(api_key=api_key)
-        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
-
-    async def solve_catpcha_google(self, website_url, captcha_key):
-        """Uses the CapMonster API to solve the recaptcha"""
-        self.recaptcha_request = RecaptchaV2ProxylessRequest(
-            websiteUrl=website_url, websiteKey=captcha_key
-        )
-        result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
-        return result
-        # return result['gRecaptchaResponse']
-
     def open_browser(self, proxies, url, max_retries=10):
         """Opens the browser with the proxy, abd cc and retries if it fails"""
         for attempt in range(max_retries):
@@ -362,6 +346,22 @@ class GoogleNews:
                 sleep(3)  # Wait before retrying
         print("Failed to connect using all provided proxies.")
         return None
+
+    # Functions relating to CapMonster
+    def set_api_key(self, api_key):
+        """Set api_key for CapMonster"""
+        self.api_key = api_key
+        self.ClientOptions = ClientOptions(api_key=api_key)
+        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
+
+    async def solve_catpcha_google(self, website_url, captcha_key):
+        """Uses the CapMonster API to solve the recaptcha"""
+        self.recaptcha_request = RecaptchaV2ProxylessRequest(
+            websiteUrl=website_url, websiteKey=captcha_key
+        )
+        result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
+        return result
+        # return result['gRecaptchaResponse']
 
     async def catcha_solver(self):
         """Solve the recaptcha using CapMonster"""
@@ -399,11 +399,9 @@ class GoogleNews:
         )
         self.driver.find_element(By.ID, "recaptcha-demo-submit").click()
 
-    async def build_response2(self, url):
+    # Functions relating to Google news processing
+    async def get_response(self):
         """Reworkign the webscrapping process and the parsing"""
-
-        self.driver = self.open_browser(self.proxy, url)
-
         # Check if you have sent to a "Before you continue to Google" page
         if "consent" in self.driver.current_url:
             agreed_button = WebDriverWait(self.driver, 30).until(
@@ -428,16 +426,11 @@ class GoogleNews:
         if self.save_raw_html:
             with open("raw_html.html", "w", encoding="utf-8") as f:
                 f.write(pretty_html)
-
-        # Close the webdriver
-        self.driver.close()
-
-        # Perform analysis or extraction from the page
-        result = self.result_parse(page_source)
-        return result
+        return page_source
 
     def url_search_formatting(self, page=1):
-        """Format the URL for the search a first time"""
+        """Creates the URL for the search depending of the
+        start, end, period, page and language"""
         try:
             # Base URL and common parameters
             base_url = "https://www.google.com/search"
@@ -515,6 +508,7 @@ class GoogleNews:
             )
         return self.__results
 
+    # Main functions to get the webscrapping and results
     def page_at(self, page=1):
         """
         Retrieves a specific page from google.com in the news
@@ -523,10 +517,12 @@ class GoogleNews:
         page = number of the page to be retrieved
         """
         # Getting the formatted URL
-        formated_url = self.url_search_formatting(page)
+        formatted_url = self.url_search_formatting(page)
+        # Opening the browser
+        self.driver = self.open_browser(self.proxy, formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
-            results = asyncio.run(self.build_response2(formated_url))
+            page_source = asyncio.run(self.get_response())
         except NoSuchElementException as e_no_element:
             print(f"Element not found: {e_no_element}")
         except TimeoutException as e_timeout:
@@ -539,7 +535,74 @@ class GoogleNews:
             print(f"Invalid argument: {e_invalid_arg}")
         except WebDriverException as e_webdriver:
             print(f"WebDriver error: {e_webdriver}")
-        return results
+
+        # Close the webdriver
+        self.driver.close()
+
+        # Perform parse and save info within the class
+        result = self.result_parse(page_source)
+
+        # Save the results into a json file
+        if self.save_results_formatted:
+            with open("data.json", "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=4)
+        return result
+
+    def new_from_pages(self, pages: list = None):
+        """
+        Retrives the news from multiples pages in one go
+        reusing the same  webscrapping session.
+        Argument:
+        pages = number of pages to be retrieved, expects a list
+        """
+        # Ammending default value
+        if pages is None:
+            pages = [1]
+        # Initialize the dictionary to store the results
+        page_info = {}
+        # Open first page just to check whats the max number of pages
+        formatted_url = self.url_search_formatting(1)
+        self.driver = self.open_browser(self.proxy, formatted_url)
+        asyncio.run(self.get_response())
+        # Get the max number of pages
+        page_elements = self.driver.find_elements(By.CLASS_NAME, "NKTSme")
+        if not page_elements:
+            max_page = len(page_elements)
+            # Cap the search to the max number of pages
+            if max(pages) > max_page and max_page != 0:
+                pages = [i for i in pages if i <= max_page]
+        else:
+            print("Max page not found")
+
+        for page in pages:
+            formatted_url = self.url_search_formatting(page)
+            # Reusing the same session
+            self.driver.get(formatted_url)
+
+            # Executing and the webscrap and potential exceptions
+            try:
+                page_source = asyncio.run(self.get_response())
+            except NoSuchElementException as e_no_element:
+                print(f"Element not found: {e_no_element}")
+            except TimeoutException as e_timeout:
+                print(f"Timeout occurred: {e_timeout}")
+            except ElementNotInteractableException as e_not_interactable:
+                print(f"Element not interactable: {e_not_interactable}")
+            except StaleElementReferenceException as e_stale:
+                print(f"Stale element reference: {e_stale}")
+            except InvalidArgumentException as e_invalid_arg:
+                print(f"Invalid argument: {e_invalid_arg}")
+            except WebDriverException as e_webdriver:
+                print(f"WebDriver error: {e_webdriver}")
+
+            # Perform parse and save info within the class
+            result = self.result_parse(page_source)
+            page_name = f"page_{page}"
+            page_info[page_name] = result
+
+        # Close the webdriver
+        self.driver.close()
+        return page_info
 
     def get_page(self, page=1):
         # this is the one that runs when we do search()
@@ -550,10 +613,11 @@ class GoogleNews:
         page = number of the page to be retrieved
         """
         formatted_url = self.url_search_formatting(page)
-        # formatted_url = self.url_search_old(page)
+        # Opening the browser
+        self.driver = self.open_browser(self.proxy, formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
-            content = asyncio.run(self.build_response2(formatted_url))
+            page_source = asyncio.run(self.get_response())
         except NoSuchElementException as e_no_element:
             print(f"Element not found: {e_no_element}")
         except TimeoutException as e_timeout:
@@ -567,13 +631,19 @@ class GoogleNews:
         except WebDriverException as e_webdriver:
             print(f"WebDriver error: {e_webdriver}")
 
+        # Close the webdriver
+        self.driver.close()
+
+        # Perform parse and save info within the class
+        result = self.result_parse(page_source)
+
         # Save the results into a json file
         if self.save_results_formatted:
             with open("data.json", "w", encoding="utf-8") as f:
-                json.dump(content, f, ensure_ascii=False, indent=4)
+                json.dump(result, f, ensure_ascii=False, indent=4)
+        return result
 
-        return content
-
+    # Others functions pending to rework
     def get_news(self, key="", deamplify=False):
         if key != "":
             if self.__period != "":
