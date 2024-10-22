@@ -10,6 +10,7 @@ from pathlib import Path
 import json
 from time import sleep
 import random
+import os
 
 # Third-party imports
 import nltk
@@ -49,7 +50,7 @@ def getNews(stock, start_date, end_date, proxies, cookies) -> str:
     googlenews = GoogleNews(lang="en", region="US", start=start_date, end=end_date)
     googlenews.set_api_key(cred.APIKEY)
     googlenews.set_key(stock)
-    result = googlenews.new_from_pages([1, 2, 3, 4])
+    result = googlenews.new_from_pages([1, 2])
     result = [
         item for sublist in result.values() for item in sublist
     ]  # flatten the list
@@ -116,14 +117,13 @@ def get_week_pairs(start_year, end_year):
         # The Sunday following the Monday
         following_sunday = current_date + datetime.timedelta(days=6)
         # Append the Monday and its corresponding Sunday to the list
-        week_pairs.append((current_date, following_sunday))
+        week_pairs.append(
+            (current_date.strftime("%d/%m/%Y"), following_sunday.strftime("%d/%m/%Y"))
+        )
         # Move to the next Monday (one week ahead)
         current_date += datetime.timedelta(days=7)
 
-    # Convert list of tuples to numpy array with dtype datetime64
-    week_pairs_np = np.array(week_pairs, dtype="datetime64[D]")
-
-    return week_pairs_np
+    return week_pairs
 
 
 def worker(proxy_queue, url, lock, good_proxies):
@@ -348,9 +348,21 @@ def test_proxy_GoogleNews():
 
 
 if __name__ == "__main__":
+    # Potential improvement:
+    # I could double check the news is whithin the range on the class
+    weeks = get_week_pairs(2015, 2016)
     PROXIES = ""
     COOKIES = None
-    TOTAL_TEXT = getNews("merck", "02/01/2020", "02/28/2020", PROXIES, COOKIES)
-    FILE_PATH = Path("data") / "merck_Feb2020.txt"
-    with open(FILE_PATH, "w", encoding="utf-8") as file:
-        file.write(TOTAL_TEXT)
+    STOCK = "merck"
+    files_on_data = os.listdir("data")
+    dates_on_data = [
+        "/".join(file.split(".")[0].split("_")[1:4]) for file in files_on_data
+    ]
+    for start_date, end_date in weeks:
+        if start_date not in dates_on_data:
+            TOTAL_TEXT = getNews(STOCK, start_date, end_date, PROXIES, COOKIES)
+            start_date_for_file = start_date.replace("/", "_")
+            name_file = f"{STOCK}_{start_date_for_file}.txt"
+            FILE_PATH = Path("data") / name_file
+            with open(FILE_PATH, "w", encoding="utf-8") as file:
+                file.write(TOTAL_TEXT)

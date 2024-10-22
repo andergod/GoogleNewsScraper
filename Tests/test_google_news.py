@@ -6,6 +6,7 @@ import pytest
 from selenium.webdriver.common.by import By
 import app.cred as cred
 from app.google_news_webscrap import GoogleNews
+from time import sleep
 
 
 def test_search():
@@ -30,15 +31,24 @@ def test_search():
     ), "At least 2 results should have non-empty title and description"
 
 
-def test_get_page():
+# If you see any wierd behavior on the dates on the webscraper may be
+# because we're using get_page instead of search. May be worth pocking around
+# if the issue continues
+def test_page_at():
     """Test get page from Google News"""
     # Start , end date and search
-    startdate, enddate, search = "02/01/2020", "02/28/2020", "covid-19"
+    startdate, enddate, search = "01/03/2020", "31/03/2020", "covid-19"
     # Set up the GoogleNews object
     googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
     googlenews.set_key(search)
-    webscrap = [googlenews.page_at(i) for i in range(1, 4)]
-    webscrap = [item for sublist in webscrap for item in sublist]  # flatten the list
+    webscrap_list = []
+    for i in range(1, 4):
+        webscrap = googlenews.page_at(i)
+        print(googlenews.url_search_formatting(i))
+        webscrap_list.append(webscrap)
+    webscrap_list = [
+        item for sublist in webscrap for item in sublist
+    ]  # flatten the list
 
     # Assert that there are at least 8 result with non-empty title and description
     non_empty_count = 0
@@ -81,8 +91,7 @@ async def test_solving_catpcha():
 
 
 # if __name__ == "__main__":
-#     test_news_from_pages()
-
+#     test_page_at()
 
 # def test_url_formatting():
 #     """Test url formatting old version vs new version"""

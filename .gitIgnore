@@ -16,3 +16,6 @@ __pycache__/
 /app/__pycache__/
 /Tests/__pycache__/
 
+#Ignore data folder
+/data/
+

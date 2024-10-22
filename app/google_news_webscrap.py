@@ -431,6 +431,11 @@ class GoogleNews:
     def url_search_formatting(self, page=1):
         """Creates the URL for the search depending of the
         start, end, period, page and language"""
+
+        def from_international_to_us_date(date: str) -> str:
+            """Converts international date format to US date format"""
+            return f"{date[3:5]}/{date[:2]}/{date[-4:]}"
+
         try:
             # Base URL and common parameters
             base_url = "https://www.google.com/search"
@@ -446,8 +451,9 @@ class GoogleNews:
             if self.__start and self.__end:
                 # Date range filter
                 date_params = (
-                    f"&tbs=lr:lang_1{self.__lang},cdr:1,cd_min:{self.__start},"
-                    f"cd_max:{self.__end}"
+                    f"&tbs=lr:lang_1{self.__lang},cdr:1,cd_min"
+                    f":{from_international_to_us_date(self.__start)},"
+                    f"cd_max:{from_international_to_us_date(self.__end)}"
                 )
                 self.url = f"{base_url}?{common_params}{date_params}{pagination_param}"
             elif self.__period:
