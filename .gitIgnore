@@ -19,3 +19,5 @@ __pycache__/
 #Ignore data folder
 /data/
 
+# Ignore data for debugging
+raw_html.html
