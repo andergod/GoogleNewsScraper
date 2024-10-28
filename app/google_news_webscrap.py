@@ -1,7 +1,7 @@
 """main class used for webscrappinng using 
 selenium and capMonster to solve the recaptcha"""
 
-# Local imports
+# Standard imports
 import urllib.request
 import copy
 import random
@@ -12,8 +12,6 @@ from time import sleep
 
 # Third party imports
 from bs4 import BeautifulSoup as Soup
-from dateutil.relativedelta import relativedelta
-import dateparser
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -31,91 +29,11 @@ from selenium.common.exceptions import (
 from fake_useragent import UserAgent
 from selenium_stealth import stealth
 import requests
-from capmonstercloudclient import CapMonsterClient, ClientOptions
-from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
+
+# Import from local files
+import app.capmonster as capmonster
 
 # METHODS
-
-
-def lexical_date_parser(date_to_check):
-    if date_to_check == "":
-        return ("", None)
-    datetime_tmp = None
-    date_tmp = copy.copy(date_to_check)
-    try:
-        date_tmp = date_tmp[date_tmp.rfind("..") + 2 :]
-        datetime_tmp = dateparser.parse(date_tmp)
-    except:
-        date_tmp = None
-        datetime_tmp = None
-
-    if datetime_tmp is None:
-        date_tmp = date_to_check
-    else:
-        datetime_tmp = datetime_tmp.replace(tzinfo=None)
-
-    if date_tmp[0] == " ":
-        date_tmp = date_tmp[1:]
-    return date_tmp, datetime_tmp
-
-
-def define_date(date):
-    months = {
-        "Jan": 1,
-        "Feb": 2,
-        "Mar": 3,
-        "Apr": 4,
-        "May": 5,
-        "Jun": 6,
-        "Jul": 7,
-        "Aug": 8,
-        "Sep": 9,
-        "Sept": 9,
-        "Oct": 10,
-        "Nov": 11,
-        "Dec": 12,
-        "01": 1,
-        "02": 2,
-        "03": 3,
-        "04": 4,
-        "05": 5,
-        "06": 6,
-        "07": 7,
-        "08": 8,
-        "09": 9,
-        "10": 10,
-        "11": 11,
-        "12": 12,
-    }
-    try:
-        if " ago" in date.lower():
-            q = int(date.split()[-3])
-            if "minutes" in date.lower() or "mins" in date.lower():
-                return datetime.datetime.now() + relativedelta(minutes=-q)
-            elif "hour" in date.lower():
-                return datetime.datetime.now() + relativedelta(hours=-q)
-            elif "day" in date.lower():
-                return datetime.datetime.now() + relativedelta(days=-q)
-            elif "week" in date.lower():
-                return datetime.datetime.now() + relativedelta(days=-7 * q)
-            elif "month" in date.lower():
-                return datetime.datetime.now() + relativedelta(months=-q)
-        elif "yesterday" in date.lower():
-            return datetime.datetime.now() + relativedelta(days=-1)
-        else:
-            date_list = date.replace("/", " ").split(" ")
-            if len(date_list) == 2:
-                date_list.append(datetime.datetime.now().year)
-            elif len(date_list) == 3:
-                if date_list[0] == "":
-                    date_list[0] = "1"
-            return datetime.datetime(
-                day=int(date_list[0]),
-                month=months[date_list[1]],
-                year=int(date_list[2]),
-            )
-    except:
-        return float("nan")
 
 
 # CLASSES
@@ -329,22 +247,11 @@ class GoogleNews:
         return None
 
     # Functions relating to CapMonster
-    def set_api_key(self, api_key):
+    def set_api_key(self, api_key: str) -> None:
         """Set api_key for CapMonster"""
-        self.api_key = api_key
-        self.ClientOptions = ClientOptions(api_key=api_key)
-        self.cap_monster_client = CapMonsterClient(options=self.ClientOptions)
+        self.cap_monster_client = capmonster.set_api_key(api_key)
 
-    async def solve_catpcha_google(self, website_url, captcha_key):
-        """Uses the CapMonster API to solve the recaptcha"""
-        self.recaptcha_request = RecaptchaV2ProxylessRequest(
-            websiteUrl=website_url, websiteKey=captcha_key
-        )
-        result = await self.cap_monster_client.solve_captcha(self.recaptcha_request)
-        return result
-        # return result['gRecaptchaResponse']
-
-    async def catcha_solver(self):
+    async def catcha_solver(self) -> None:
         """Solve the recaptcha using CapMonster"""
         sleep(2)  # Sleep to allow the page to fully load
 
@@ -369,8 +276,8 @@ class GoogleNews:
             raise ValueError("No reCAPTCHA element found on the page.")
 
         # If we successfully found a sitekey
-        recaptcha_response = await self.solve_catpcha_google(
-            self.driver.current_url, key
+        recaptcha_response = await capmonster.capmonster_catpcha_response(
+            self.driver.current_url, key, self.cap_monster_client
         )
         solve_actions = recaptcha_response["gRecaptchaResponse"]
 
