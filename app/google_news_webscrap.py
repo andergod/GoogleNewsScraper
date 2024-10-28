@@ -12,7 +12,6 @@ from time import sleep
 
 # Third party imports
 from bs4 import BeautifulSoup as Soup
-from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 import dateparser
 from selenium import webdriver
@@ -27,6 +26,7 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     WebDriverException,
     InvalidArgumentException,
+    SessionNotCreatedException,
 )
 from fake_useragent import UserAgent
 from selenium_stealth import stealth
@@ -275,9 +275,8 @@ class GoogleNews:
                 print(f"Proxy {type} not working: {e}")
         return None
 
-    def setup_chrome_proxy(self, chrome_options, proxy, cookie):
-        """Set up the Chrome browser with the proxy and cookie"""
-        # chrome_options.add_argument(f'--proxy-server={proxy}')
+    def setup_chrome_proxy(self, chrome_options):
+        """Set up the Chrome browser"""
         ua = UserAgent()
         user_agent = ua.random
         chrome_options.add_argument(f"user-agent={user_agent}")
@@ -303,19 +302,6 @@ class GoogleNews:
         chosen_size = random.choice(possible_sizes)
         driver.set_window_size(*chosen_size)
 
-        # Navigate to a page that accepts the cookie
-        # driver.get('https://www.google.com')
-
-        # Inject the cookie into the browser
-        # Stop passing the cookie for now
-        # if 'expiry' in cookie:
-        #     del cookie['expiry']  # Selenium might not accept expiry,
-        # depends on version
-        # driver.add_cookie(cookie)
-
-        # Refresh or navigate again to make cookie take effect
-        # driver.get('https://www.google.com')
-        # Use selenium-stealth to avoid being detected as a bot
         stealth(
             driver,
             languages=["en-US", "en"],
@@ -327,24 +313,19 @@ class GoogleNews:
         )
         return driver
 
-    def open_browser(self, proxies, url, max_retries=10):
-        """Opens the browser with the proxy, abd cc and retries if it fails"""
-        for attempt in range(max_retries):
-            proxy = "None"
+    def open_browser(self, url, max_retries=3):
+        """Opens the browser and retries if it fails"""
+        for _ in range(max_retries):
             try:
-                self.driver = self.setup_chrome_proxy(
-                    self.chrome_options, proxy, self.cookies
-                )
+                self.driver = self.setup_chrome_proxy(self.chrome_options)
                 self.driver.get(url)
-                print(f"Connected using proxy: {proxy}")
                 return self.driver  # Return the self.driver if successful
-            except Exception as e:
-                print(
-                    f"Failed to connect using proxy: {proxy}, Attempt: {attempt + 1}, Error: {e}"
-                )
-                self.driver.quit()
-                sleep(3)  # Wait before retrying
-        print("Failed to connect using all provided proxies.")
+            except (
+                WebDriverException,
+                SessionNotCreatedException,
+                TimeoutException,
+            ) as e:
+                print(f"Error opening browser: {e}")
         return None
 
     # Functions relating to CapMonster
@@ -525,7 +506,7 @@ class GoogleNews:
         # Getting the formatted URL
         formatted_url = self.url_search_formatting(page)
         # Opening the browser
-        self.driver = self.open_browser(self.proxy, formatted_url)
+        self.driver = self.open_browser(formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
             page_source = asyncio.run(self.get_response())
@@ -568,7 +549,7 @@ class GoogleNews:
         page_info = {}
         # Open first page just to check whats the max number of pages
         formatted_url = self.url_search_formatting(1)
-        self.driver = self.open_browser(self.proxy, formatted_url)
+        self.driver = self.open_browser(formatted_url)
         asyncio.run(self.get_response())
         # Get the max number of pages
         page_elements = self.driver.find_elements(By.CLASS_NAME, "NKTSme")
@@ -620,7 +601,7 @@ class GoogleNews:
         """
         formatted_url = self.url_search_formatting(page)
         # Opening the browser
-        self.driver = self.open_browser(self.proxy, formatted_url)
+        self.driver = self.open_browser(formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
             page_source = asyncio.run(self.get_response())
@@ -648,174 +629,6 @@ class GoogleNews:
             with open("data.json", "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=4)
         return result
-
-    # Others functions pending to rework
-    def get_news(self, key="", deamplify=False):
-        if key != "":
-            if self.__period != "":
-                key += f" when:{self.__period}"
-        else:
-            if self.__period != "":
-                key += f"when:{self.__period}"
-        key = urllib.request.quote(key.encode(self.__encode))
-        start = f"{self.__start[-4:]}-{self.__start[:2]}-{self.__start[3:5]}"
-        end = f"{self.__end[-4:]}-{self.__end[:2]}-{self.__end[3:5]}"
-
-        if self.__start == "" or self.__end == "":
-            self.url = "https://news.google.com/search?q={}&hl={}".format(
-                key, self.__period, self.__lang.lower()
-            )
-        else:
-            self.url = (
-                "https://news.google.com/search?q={}+before:{}+after:{}&hl={}".format(
-                    key, end, start, self.__lang.lower()
-                )
-            )
-
-        try:
-            self.req = urllib.request.Request(self.url, headers=self.headers)
-            self.response = urllib.request.urlopen(self.req)
-            self.page = self.response.read()
-            self.content = Soup(self.page, "html.parser")
-            articles = self.content.select("article")
-            for article in articles:
-                try:
-                    # title
-                    try:
-                        title = article.findAll("div")[2].findAll("a")[0].text
-                    except:
-                        title = None
-                    # description
-                    try:
-                        desc = None
-                    except:
-                        desc = None
-                    # date
-                    try:
-                        date = article.find("time").text
-                        # date,datetime_tmp = lexial_date_parser(date)
-                    except:
-                        date = None
-                    # datetime
-                    try:
-                        datetime_chars = article.find("time").get("datetime")
-                        datetime_obj = parse(datetime_chars).replace(tzinfo=None)
-                    except:
-                        datetime_obj = None
-                    # link
-                    if deamplify:
-                        try:
-                            link = (
-                                "news.google.com/"
-                                + article.find("div").find("a").get("href")[2:]
-                            )
-                        except Exception as deamp_e:
-                            print(deamp_e)
-                            link = (
-                                article.find("article")
-                                .get("jslog")
-                                .split("2:")[1]
-                                .split(";")[0]
-                            )
-                    else:
-                        try:
-                            link = (
-                                "news.google.com/"
-                                + article.find("div").find("a").get("href")[2:]
-                            )
-                        except Exception as deamp_e:
-                            print(deamp_e)
-                            link = None
-                    self.__texts.append(title)
-                    self.__links.append(link)
-                    if link.startswith("https://www.youtube.com/watch?v="):
-                        desc = "video"
-                    # image
-                    try:
-                        img = "news.google.com" + article.find("figure").find(
-                            "img"
-                        ).get("src")
-                    except:
-                        img = None
-                    # site
-                    try:
-                        site = article.find("time").parent.find("a").text
-                    except:
-                        site = None
-                    try:
-                        media = (
-                            article.find("div")
-                            .findAll("div")[1]
-                            .find("div")
-                            .find("div")
-                            .find("div")
-                            .text
-                        )
-                    except:
-                        media = None
-                    # reporter
-                    try:
-                        reporter = article.findAll("span")[2].text
-                    except:
-                        reporter = None
-                    # collection
-                    self.__results.append(
-                        {
-                            "title": title,
-                            "desc": desc,
-                            "date": date,
-                            "datetime": define_date(date),
-                            "link": link,
-                            "img": img,
-                            "media": media,
-                            "site": site,
-                            "reporter": reporter,
-                        }
-                    )
-                except Exception as e_article:
-                    print(e_article)
-        except Exception as e_parser:
-            print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
-
-    def total_count(self):
-        return self.__totalcount
-
-    def result(self, sort=False):
-        """Don't remove this, will affect old version user when upgrade"""
-        return self.results(sort)
-
-    def results(self, sort=False):
-        """Returns the __results.
-        New feature: include datatime and sort the
-        articles in decreasing order"""
-        results = self.__results
-        if sort:
-            try:
-                results.sort(key=lambda x: x["datetime"], reverse=True)
-            except Exception as e_sort:
-                print(e_sort)
-                if self.__exception:
-                    raise Exception(e_sort)
-                else:
-                    pass
-                results = self.__results
-        return results
-
-    def get_texts(self):
-        """Returns only the __texts of the __results."""
-        return self.__texts
-
-    def gettext(self):
-        """Don't remove this, will affect old version user when upgrade"""
-        return self.get_texts()
-
-    def get_links(self):
-        """Returns only the __links of the __results."""
-        return self.__links
 
     def clear(self):
         self.__texts = []

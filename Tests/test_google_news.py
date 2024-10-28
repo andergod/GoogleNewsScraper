@@ -6,7 +6,6 @@ import pytest
 from selenium.webdriver.common.by import By
 import app.cred as cred
 from app.google_news_webscrap import GoogleNews
-from time import sleep
 
 
 def test_search():
@@ -81,7 +80,7 @@ async def test_solving_catpcha():
     googlenews = GoogleNews()
     catpcha_url = "https://google.com/recaptcha/api2/demo"
     googlenews.set_api_key(cred.APIKEY)
-    googlenews.open_browser(" ", catpcha_url, max_retries=1)
+    googlenews.open_browser(catpcha_url, max_retries=1)
     # The catcha is still not solving, need to solve that
     await googlenews.catcha_solver()
     # Getting a confinrmation message
