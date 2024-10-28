@@ -3,17 +3,9 @@ selenium and capMonster to solve the recaptcha"""
 
 # Standard imports
 import urllib.request
-import copy
-import random
-import datetime
-import json
-import asyncio
-from time import sleep
 
 # Third party imports
 from bs4 import BeautifulSoup as Soup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -26,12 +18,10 @@ from selenium.common.exceptions import (
     InvalidArgumentException,
     SessionNotCreatedException,
 )
-from fake_useragent import UserAgent
-from selenium_stealth import stealth
-import requests
 
 # Import from local files
 import app.capmonster as capmonster
+import app.Webdriver as Webdriver
 
 # METHODS
 
@@ -48,7 +38,6 @@ class GoogleNews:
         self.__texts = []
         self.__links = []
         self.__results = []
-        self.__totalcount = 0
         self.proxy = []
         self.user_agent = (
             "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0"
@@ -66,11 +55,7 @@ class GoogleNews:
         self.__start = start
         self.__end = end
         self.__encode = encode
-        self.__exception = False
         self.__version = "1.6.14"
-        self.chrome_options = Options()
-        self.chrome_options.add_argument("--enable-logging")
-        self.chrome_options.add_argument("--v=1")  # Set verbosity to 1
         self.cookies = {}
         self.driver = None
         self.api_key = None
@@ -172,85 +157,12 @@ class GoogleNews:
     def set_cookie(self, cookie):
         self.cookies = cookie
 
-    # Functions relating proxy, webscrapping managements
-    def check_proxy(self, proxy):
-        """
-        Check if the proxy is working sending a
-        request to httpbin.org/ip
-        """
-        types = ["http", "https", "socks4", "socks5"]
-        url = "http://httpbin.org/ip"
-        for type in types:
-            try:
-                proxies = {
-                    "http": f"{type}://{proxy}",
-                    "https": f"{type}://{proxy}",
-                }
-                response = requests.get(url, proxies=proxies, timeout=5)
-                if response.status_code == 200:
-                    return type
-            except requests.exceptions.RequestException as e:
-                print(f"Proxy {type} not working: {e}")
-        return None
-
-    def setup_chrome_proxy(self, chrome_options):
-        """Set up the Chrome browser"""
-        ua = UserAgent()
-        user_agent = ua.random
-        chrome_options.add_argument(f"user-agent={user_agent}")
-        chrome_options.add_argument("--ignore-certificate-errors")
-        chrome_options.add_argument("--ignore-ssl-errors")
-        chrome_options.add_argument("--no-sandbox")  # Add this line
-        chrome_options.add_argument(
-            "--disable-dev-shm-usage"
-        )  # Optionally, reduce memory usage
-
-        # Initialize the WebDriver with the specified options
-        # driver_service = Service('../chromedriver')
-        driver = webdriver.Chrome(options=chrome_options)
-
-        # Set random or specific monitor sizes
-        possible_sizes = [
-            (1920, 1080),
-            (1366, 768),
-            (1280, 720),
-            (1440, 900),
-            (1536, 864),
-        ]
-        chosen_size = random.choice(possible_sizes)
-        driver.set_window_size(*chosen_size)
-
-        stealth(
-            driver,
-            languages=["en-US", "en"],
-            vendor="Google Inc.",
-            platform="Win32",
-            webgl_vendor="Intel Inc.",
-            renderer="Intel Iris OpenGL Engine",
-            fix_hairline=True,
-        )
-        return driver
-
-    def open_browser(self, url, max_retries=3):
-        """Opens the browser and retries if it fails"""
-        for _ in range(max_retries):
-            try:
-                self.driver = self.setup_chrome_proxy(self.chrome_options)
-                self.driver.get(url)
-                return self.driver  # Return the self.driver if successful
-            except (
-                WebDriverException,
-                SessionNotCreatedException,
-                TimeoutException,
-            ) as e:
-                print(f"Error opening browser: {e}")
-        return None
-
-    # Functions relating to CapMonster
+    # Saving the API key for CapMonster
     def set_api_key(self, api_key: str) -> None:
         """Set api_key for CapMonster"""
         self.cap_monster_client = capmonster.set_api_key(api_key)
 
+    # Functions to solve the recaptcha
     async def catcha_solver(self) -> None:
         """Solve the recaptcha using CapMonster"""
         sleep(2)  # Sleep to allow the page to fully load
@@ -413,7 +325,7 @@ class GoogleNews:
         # Getting the formatted URL
         formatted_url = self.url_search_formatting(page)
         # Opening the browser
-        self.driver = self.open_browser(formatted_url)
+        self.driver = Webdriver.open_browser(formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
             page_source = asyncio.run(self.get_response())
@@ -456,7 +368,7 @@ class GoogleNews:
         page_info = {}
         # Open first page just to check whats the max number of pages
         formatted_url = self.url_search_formatting(1)
-        self.driver = self.open_browser(formatted_url)
+        self.driver = Webdriver.open_browser(formatted_url)
         asyncio.run(self.get_response())
         # Get the max number of pages
         page_elements = self.driver.find_elements(By.CLASS_NAME, "NKTSme")
@@ -508,7 +420,7 @@ class GoogleNews:
         """
         formatted_url = self.url_search_formatting(page)
         # Opening the browser
-        self.driver = self.open_browser(formatted_url)
+        self.driver = Webdriver.open_browser(formatted_url)
         # Executing and the webscrap and potential exceptions
         try:
             page_source = asyncio.run(self.get_response())
@@ -541,4 +453,3 @@ class GoogleNews:
         self.__texts = []
         self.__links = []
         self.__results = []
-        self.__totalcount = 0
