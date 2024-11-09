@@ -6,6 +6,8 @@ import urllib.request
 import asyncio
 from time import sleep
 import json
+from datetime import datetime
+from dateutil import parser
 
 # Third party imports
 from bs4 import BeautifulSoup as Soup
@@ -38,8 +40,6 @@ class GoogleNews:
     def __init__(
         self, lang="en", period="", start="", end="", encode="utf-8", region=None
     ):
-        self.__texts = []
-        self.__links = []
         self.__results = []
         self.proxy = []
         self.user_agent = (
@@ -58,7 +58,7 @@ class GoogleNews:
         self.__start = start
         self.__end = end
         self.__encode = encode
-        self.__version = "1.6.14"
+        self.__version__ = "0.0.01"
         self.cookies = {}
         self.driver = None
         self.api_key = None
@@ -75,7 +75,7 @@ class GoogleNews:
 
     # get the version of the package
     def getVersion(self):
-        return self.__version
+        return self.__version__
 
     def getResults(self):
         return self.__results
@@ -281,6 +281,8 @@ class GoogleNews:
         # Find all div elements with class 'SoAPf'
         articles = soup.find_all("div", class_="SoAPf")
 
+        results = []
+
         for article in articles:
             # Extract title from the div with role="heading"
             title_tag = article.find("div", role="heading")
@@ -294,6 +296,15 @@ class GoogleNews:
             date_tag = article.find("div", class_="OSrXXb").find("span")
             date = date_tag.get_text(strip=True) if date_tag else "No date"
 
+            # Checking date is in line with start and end date
+            if date != "No date":
+                news_date = parser.parse(date)
+                start_date_parsed = datetime.strptime(self.__start, "%d/%m/%Y")
+                end_date_parsed = datetime.strptime(self.__end, "%d/%m/%Y")
+                if news_date < start_date_parsed or news_date > end_date_parsed:
+                    print(f"Date: {news_date} is out of range")
+                    continue
+
             # Extract link if present (optional, depending on your HTML structure)
             link_tag = article.find_parent("a")  # Assuming <a> wraps around <div>
             link = (
@@ -302,12 +313,8 @@ class GoogleNews:
                 else "No link"
             )
 
-            # Add title and link to separate lists
-            self.__texts.append(title)
-            self.__links.append(link)
-
             # Append extracted information into the results list
-            self.__results.append(
+            results.append(
                 {
                     "title": title,
                     "date": date,
@@ -315,7 +322,7 @@ class GoogleNews:
                     "link": link,
                 }
             )
-        return self.__results
+        return results
 
     # Main functions to get the webscrapping and results
     def page_at(self, page=1):
@@ -453,6 +460,7 @@ class GoogleNews:
         return result
 
     def clear(self):
+        """Clears the texts, links and results"""
         self.__texts = []
         self.__links = []
         self.__results = []

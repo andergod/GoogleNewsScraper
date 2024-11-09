@@ -21,3 +21,6 @@ __pycache__/
 
 # Ignore data for debugging
 raw_html.html
+
+#Ignore the data.json
+data.json

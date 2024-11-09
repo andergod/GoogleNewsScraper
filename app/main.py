@@ -44,10 +44,10 @@ def load_nltk_information():
     return nlp
 
 
-def getNews(stock, start_date, end_date, proxies, cookies) -> str:
+def getNews(stock, start, end, proxies, cookies) -> str:
     """Function to get news from Google News"""
     googlenews = GoogleNews()
-    googlenews = GoogleNews(lang="en", region="US", start=start_date, end=end_date)
+    googlenews = GoogleNews(lang="en", region="US", start=start, end=end)
     googlenews.set_api_key(cred.APIKEY)
     googlenews.set_key(stock)
     result = googlenews.new_from_pages([1, 2])
@@ -103,17 +103,19 @@ def get_stock(text, stock_dict) -> str:
 
 
 def get_week_pairs(start_year, end_year):
+    """Get the pairs of weeks in the format (Monday, Sunday)
+    for the given range of years."""
     # Start date at the beginning of the start year
-    start_date = datetime.date(start_year, 1, 1)
+    start = datetime.date(start_year, 1, 1)
     # Adjust start date if January 1 is not a Monday
-    start_date += datetime.timedelta(days=(7 - start_date.weekday()) % 7)
+    start += datetime.timedelta(days=(7 - start.weekday()) % 7)
     # End date at the end of the end year
-    end_date = datetime.date(end_year, 12, 31)
+    end = datetime.date(end_year, 12, 31)
     # List for storing the week pairs
     week_pairs = []
     # Current date initially set to the first Monday of the start year
-    current_date = start_date
-    while current_date <= end_date:
+    current_date = start
+    while current_date <= end:
         # The Sunday following the Monday
         following_sunday = current_date + datetime.timedelta(days=6)
         # Append the Monday and its corresponding Sunday to the list

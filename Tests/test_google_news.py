@@ -12,10 +12,11 @@ import app.Webdriver as Webdriver
 def test_search():
     """Test get Search from Google News"""
     # Start , end date and search
-    startdate, enddate, search = "02/01/2020", "02/28/2020", "covid-19"
+    startdate, enddate, search = "01/01/2020", "31/01/2020", "covid-19"
     # Set up the GoogleNews object
     googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
     googlenews.set_return_results(True)
+    googlenews.set_save_results_formatted(True)
     webscrap = googlenews.search(search)
     # Assert that there are at least 2 result with non-empty title and description
     non_empty_count = 0
@@ -66,7 +67,7 @@ def test_page_at():
 def test_news_from_pages():
     """Test get a list of pages reusing the same webscrap object"""
     # Start , end date and search
-    startdate, enddate, search = "02/01/2020", "02/28/2020", "covid-19"
+    startdate, enddate, search = "01/02/2020", "28/01/2020", "covid-19"
     # Set up the GoogleNews object
     googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
     googlenews.set_key(search)
@@ -91,15 +92,4 @@ async def test_solving_catpcha():
 
 
 # if __name__ == "__main__":
-#     test_page_at()
-
-# def test_url_formatting():
-#     """Test url formatting old version vs new version"""
-#     # Start , end date and search
-#     startdate, enddate, search = "02/01/2020", "02/28/2020", "covid-19"
-#     # Set up the GoogleNews object
-#     googlenews = GoogleNews(start=startdate, end=enddate, lang="en", region="US")
-#     googlenews.set_key(search)
-#     # Assert that the url is formatted correctly
-#     print(f"Old weorking URL: \n{googlenews.url_search_old(1)}")
-#     print(f"New not working URL: \n{googlenews.url_search_formatting(1, search)}")
+#     test_search()
